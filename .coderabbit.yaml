@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+language: "en-US"
+early_access: false
+
+chat:
+  auto_reply: true
+
+tone_instructions: >-
+  You are an expert Go reviewer with a security/applied-cryptography background. 
+  Reply formal, concise: flag issues, give production-grade fixes, no praise or diff
+  restatement. Treat crypto correctness as high-priority.
+
+reviews:
+  profile: chill
+  high_level_summary_instructions: >-
+    Write a concise summary for reviewers.
+        1. Start with a 1-2 sentence executive summary of the business or technical goal.
+        2. Group the technical changes into bulleted categories: Features, Fixes, Refactoring, and Chores.
+        3. Explicitly flag any of the following if present: changes to cryptographic primitives or key sizes, key/nonce/IV generation or storage, and new CLI flags that accept secrets.
+        4. Do NOT list file-by-file changes (the walkthrough covers that). Keep it high-level.
+  high_level_summary_in_walkthrough: true
+
+  poem: false
+
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  related_prs: false
+  suggested_labels: false
+  suggested_reviewers: false
+  enable_prompt_for_ai_agents: false
+
+  path_instructions:
+    - path: "**/*.go"
+      instructions: |
+        Review this Go code for correctness, idiomatic style, security, and performance. Specifically:
+        - Flag unhandled or silently discarded errors (`_ = err`, ignored return values); prefer wrapping with `fmt.Errorf("...: %w", err)` over swallowing or re-stringifying
+        - Prefer sentinel errors / `errors.Is`/`errors.As` over string-matching error messages
+        - Check goroutines for leaks: every goroutine should have a clear exit path (context cancellation, closed channel, or WaitGroup); flag goroutines with no way to be stopped
+        - Prefer explicit, readable error handling and clean-code expressiveness over clever abstractions that obscure control flow
+        - Check exported functions/types have doc comments starting with the identifier name (godoc convention)
+        - Note allocations or patterns in hot paths that hurt performance (unnecessary copies, string concatenation in loops, missing `sync.Pool` where warranted)
+
+        Cryptography-specific checks (treat violations as high severity, not style nits):
+        - Flag any use of `math/rand` for keys, nonces, IVs, or salts — must use `crypto/rand`
+        - Flag nonce/IV reuse risk: nonces must be unique per key (random for AES-GCM/ChaCha20-Poly1305, or a correctly-maintained counter — never a fixed/zero value or derived from non-unique input)
+        - Flag secret/key comparison using `==`, `bytes.Equal`, or `strings.Compare` — must use `crypto/subtle.ConstantTimeCompare` or `hmac.Equal` to avoid timing side-channels
+        - Check that key material is not logged, printed, or included in error messages, and is zeroed/cleared from memory after use where feasible
+        - Flag insufficient key sizes for the algorithm in use (e.g. RSA < 2048, symmetric keys < 128 bits) or use of algorithms without a documented security rationale
+
+    - path: "cmd/**/*.go"
+      instructions: |
+        Review this Cobra CLI command code. Specifically:
+        - Flag secrets (passwords, private keys, passphrases) accepted via command-line flags — these leak through shell history and process listings (`ps`); prefer prompting via stdin (with echo disabled, e.g. `golang.org/x/term.ReadPassword`), an env var, or a file path flag instead
+        - Check flag/argument validation happens before any cryptographic operation runs (`cobra.ExactArgs`, `MarkFlagRequired`, explicit checks in `PreRunE`)
+        - Prefer `RunE` over `Run` so errors propagate through Cobra's error handling instead of the command silently doing nothing or calling `os.Exit` directly
+        - Avoid `os.Exit`/`log.Fatal` inside `RunE`/`PreRunE`; return an error so cleanup (deferred key zeroing, temp file removal) still runs
+        - Check that file path flags for key/output material validate paths (no unintended overwrite of existing keys, no path traversal from user input)
+        - Check help text and flag descriptions clearly state units/formats (e.g. hex vs base64 vs raw bytes) to prevent user error with cryptographic material
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: false
+
+  tools:
+    languagetool:
+      enabled: true
+      level: default
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
