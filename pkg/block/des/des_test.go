@@ -91,3 +91,11 @@ func TestNewDES(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockSize(t *testing.T) {
+	t.Run("block size", func(t *testing.T) {
+		var d des
+		testutil.AssertEqual(t, d.BlockSize(), blockSize)
+		testutil.AssertEqual(t, d.BlockSize(), 8)
+	})
+}
