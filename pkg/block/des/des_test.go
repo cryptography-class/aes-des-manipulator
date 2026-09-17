@@ -1,6 +1,11 @@
 package des
 
 import (
+	"embed"
+	"encoding/hex"
+	"fmt"
+	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/testutil"
@@ -100,6 +105,67 @@ func TestBlockSize(t *testing.T) {
 	})
 }
 
+// Huge thanks to
+// https://stackoverflow.com/questions/21341794/data-encryption-standard-test-vectors
+// for providing structured test data from
+// "Validating the Correctness of Hardware Implementations of the NBS Data Encryption Standard"
+// NBS Special Publication 500-20, 1980.
+
+//go:embed testdata/**/*.txt
+var testdataFS embed.FS
+
+type testdata struct {
+	key  []byte
+	src  []byte
+	want []byte
+}
+
+func parseTestData(t *testing.T, filename string) []testdata {
+	t.Helper()
+
+	read, err := testdataFS.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("%s: failed to read testdata: %s", filename, err)
+	}
+	data := string(read)
+
+	var out []testdata
+	for raw := range strings.SplitSeq(data, ",") {
+		raw := strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+
+		row := strings.Fields(raw)
+		if len(row) != 3 {
+			t.Fatalf("%s: %s expected 3 parts, got: %d", filename, raw, len(row))
+		}
+
+		out = append(out, testdata{
+			key:  parseHex(t, filename, row[0]),
+			src:  parseHex(t, filename, row[1]),
+			want: parseHex(t, filename, row[2]),
+		})
+	}
+
+	return out
+}
+
+func parseHex(t *testing.T, filename string, raw string) []byte {
+	t.Helper()
+
+	b, err := hex.DecodeString(raw)
+	if err != nil {
+		t.Fatalf("%s: failed to decode hex: %s", filename, err)
+	}
+
+	if len(b) != 8 {
+		t.Fatalf("%s: expected 8 bytes, got %d: %q", filename, len(b), raw)
+	}
+
+	return b
+}
+
 type encryptTest struct {
 	name      string
 	key       []byte
@@ -133,6 +199,24 @@ func TestEncrypt(t *testing.T) {
 			dst:       make([]byte, blockSize),
 			wantPanic: true,
 		},
+	}
+
+	files, err := fs.Glob(testdataFS, "testdata/encrypt/*.txt")
+	if err != nil {
+		t.Fatalf("failed to read testdata: %s", err)
+	}
+
+	for _, filename := range files {
+		tdata := parseTestData(t, filename)
+		for i, tt := range tdata {
+			tests = append(tests, encryptTest{
+				name: fmt.Sprintf("%s_%d", filename, i+1),
+				key:  tt.key,
+				src:  tt.src,
+				dst:  make([]byte, blockSize),
+				want: tt.want,
+			})
+		}
 	}
 
 	for _, tt := range tests {
