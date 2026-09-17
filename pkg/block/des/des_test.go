@@ -99,3 +99,55 @@ func TestBlockSize(t *testing.T) {
 		testutil.AssertEqual(t, d.BlockSize(), 8)
 	})
 }
+
+type encryptTest struct {
+	name      string
+	key       []byte
+	src       []byte
+	dst       []byte
+	want      []byte
+	wantPanic bool
+}
+
+func TestEncrypt(t *testing.T) {
+	tests := []encryptTest{
+		{
+			// source: https://arxiv.org/pdf/2301.05530
+			name: "valid key 1",
+			key:  []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:  []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF},
+			dst:  make([]byte, blockSize),
+			want: []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05},
+		},
+		{
+			name:      "dst size mismatch",
+			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:       make([]byte, blockSize),
+			dst:       make([]byte, blockSize-1),
+			wantPanic: true,
+		},
+		{
+			name:      "src size mismatch",
+			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:       make([]byte, blockSize-1),
+			dst:       make([]byte, blockSize),
+			wantPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				testutil.AssertPanic(t, recover(), tt.wantPanic)
+			}()
+
+			d, err := NewDES(tt.key)
+			if err != nil {
+				t.Fatal("NewDES error:", err)
+			}
+
+			d.Encrypt(tt.dst, tt.src)
+			testutil.AssertDeepEqual(t, tt.dst, tt.want)
+		})
+	}
+}
