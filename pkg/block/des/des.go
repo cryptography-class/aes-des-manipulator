@@ -2,6 +2,7 @@
 package des
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/bits"
@@ -29,24 +30,23 @@ func NewDES(key []byte) (block.Cipher, error) {
 		return nil, fmt.Errorf("des: key must be 8 bytes long, got: %d", len(key))
 	}
 
-	var keyBits uint64
-	for _, b := range key {
-		keyBits = (keyBits << 8) | uint64(b)
-	}
+	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
+	// at byte to uint64 and vice-versa conversions
+	keyBits := binary.BigEndian.Uint64(key)
+	keyBits = bits.Permute(keyBits, 64, pc1Table)
 
 	// we do not verify the parity bits
 
-	pc1 := bits.Permute(keyBits, 64, pc1Table)
-	left := uint32(pc1 >> 28)
-	right := uint32(pc1 & 0x0FFFFFFF)
+	left := uint32(keyBits >> 28)
+	right := uint32(keyBits & 0x0FFFFFFF)
 
 	var out des
 	for i, shift := range shiftSchedule {
 		left = bits.LeftRotate(left, 28, shift)
 		right = bits.LeftRotate(right, 28, shift)
 
-		full := (uint64(left) << 28) | uint64(right)
-		out.subkeys[i] = bits.Permute(full, 56, pc2Table)
+		// concatenate the values and run them through pc2
+		out.subkeys[i] = bits.Permute((uint64(left)<<28)|uint64(right), 56, pc2Table)
 	}
 
 	return &out, nil
@@ -59,7 +59,52 @@ func (d *des) BlockSize() int {
 
 // Encrypt implements block.Cipher.
 func (d *des) Encrypt(dst, src []byte) {
-	panic("NOT IMPLEMENTED")
+	if len(src) != blockSize {
+		panic(fmt.Sprintf("des: src must be 8 bytes long, got: %d", len(src)))
+	}
+
+	if len(dst) != blockSize {
+		panic(fmt.Sprintf("des: dst must be 8 bytes long, got: %d", len(dst)))
+	}
+
+	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
+	// at byte to uint64 and vice-versa conversions
+	inBits := binary.BigEndian.Uint64(src)
+	inBits = bits.Permute(inBits, 64, ipTable)
+
+	left := uint32(inBits >> 32)
+	right := uint32(inBits & 0xFFFFFFFF)
+	for _, subkey := range d.subkeys {
+		temp := d.processFeistelNetwork(uint64(right), subkey) ^ left
+
+		left = right
+		right = temp
+	}
+
+	// swap the values after the 16th round and run them through ip reverse
+	binary.BigEndian.PutUint64(dst, bits.Permute(uint64(right)<<32|uint64(left), 64, ipReverseTable))
+}
+
+func (d *des) processFeistelNetwork(in uint64, subkey uint64) uint32 {
+	out := bits.Permute(in, 32, eTable) ^ subkey
+	out = d.processSBoxes(out)
+
+	return uint32(bits.Permute(out, 32, pTable))
+}
+
+func (d *des) processSBoxes(in uint64) uint64 {
+	var out uint64
+	for i, box := range sBoxes {
+		temp := in >> (48 - 6*(i+1)) & 0b111111
+
+		row := (bits.GetBit[uint64](temp, 6, 1) << 1) | bits.GetBit[uint64](temp, 6, 6)
+		column := (temp >> 1) & 0b1111
+
+		// append 4 bits into out based on row and column
+		out = out<<4 | box[row*sBoxRowSize+column]
+	}
+
+	return out
 }
 
 // Decrypt implements block.Cipher.
