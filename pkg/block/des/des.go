@@ -57,8 +57,7 @@ func (d *des) BlockSize() int {
 	return blockSize
 }
 
-// Encrypt implements block.Cipher.
-func (d *des) Encrypt(dst, src []byte) {
+func (d *des) validateBlocks(dst, src []byte) {
 	if len(src) != blockSize {
 		panic(fmt.Sprintf("des: src must be 8 bytes long, got: %d", len(src)))
 	}
@@ -66,6 +65,10 @@ func (d *des) Encrypt(dst, src []byte) {
 	if len(dst) != blockSize {
 		panic(fmt.Sprintf("des: dst must be 8 bytes long, got: %d", len(dst)))
 	}
+}
+
+func (d *des) crypt(dst, src []byte, forward bool) {
+	d.validateBlocks(dst, src)
 
 	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
 	// at byte to uint64 and vice-versa conversions
@@ -74,7 +77,13 @@ func (d *des) Encrypt(dst, src []byte) {
 
 	left := uint32(inBits >> 32)
 	right := uint32(inBits & 0xFFFFFFFF)
-	for _, subkey := range d.subkeys {
+
+	for i := range len(d.subkeys) {
+		if !forward {
+			i = len(d.subkeys) - 1 - i
+		}
+		subkey := d.subkeys[i]
+
 		temp := d.processFeistelNetwork(uint64(right), subkey) ^ left
 
 		left = right
@@ -85,6 +94,16 @@ func (d *des) Encrypt(dst, src []byte) {
 	binary.BigEndian.PutUint64(dst, bits.Permute(uint64(right)<<32|uint64(left), 64, ipReverseTable))
 }
 
+// Encrypt implements block.Cipher.
+func (d *des) Encrypt(dst, src []byte) {
+	d.crypt(dst, src, true)
+}
+
+// Decrypt implements block.Cipher.
+func (d *des) Decrypt(dst, src []byte) {
+	d.crypt(dst, src, false)
+}
+
 func (d *des) processFeistelNetwork(in uint64, subkey uint64) uint32 {
 	out := bits.Permute(in, 32, eTable) ^ subkey
 	out = d.processSBoxes(out)
@@ -92,6 +111,7 @@ func (d *des) processFeistelNetwork(in uint64, subkey uint64) uint32 {
 	return uint32(bits.Permute(out, 32, pTable))
 }
 
+// TODO: REPLACE WITH A PRECOMUPTED MAP
 func (d *des) processSBoxes(in uint64) uint64 {
 	var out uint64
 	for i, box := range sBoxes {
@@ -105,9 +125,4 @@ func (d *des) processSBoxes(in uint64) uint64 {
 	}
 
 	return out
-}
-
-// Decrypt implements block.Cipher.
-func (d *des) Decrypt(dst, src []byte) {
-	panic("NOT IMPLEMENTED")
 }
