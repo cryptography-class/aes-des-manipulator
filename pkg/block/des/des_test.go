@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -114,6 +115,11 @@ func TestBlockSize(t *testing.T) {
 //go:embed testdata/**/*.txt
 var testdataFS embed.FS
 
+const (
+	encryptFolder = "encrypt"
+	decryptFolder = "decrypt"
+)
+
 type testdata struct {
 	key  []byte
 	src  []byte
@@ -166,7 +172,7 @@ func parseHex(t *testing.T, filename string, raw string) []byte {
 	return b
 }
 
-type encryptTest struct {
+type cryptTest struct {
 	name      string
 	key       []byte
 	src       []byte
@@ -175,8 +181,33 @@ type encryptTest struct {
 	wantPanic bool
 }
 
+func appendCryptTests(t *testing.T, tests []cryptTest, folder string) []cryptTest {
+	t.Helper()
+
+	files, err := fs.Glob(testdataFS, fmt.Sprintf("testdata/%s/*.txt", folder))
+	if err != nil {
+		t.Fatalf("failed to read testdata: %s", err)
+	}
+
+	for _, filename := range files {
+		tdata := parseTestData(t, filename)
+		name, _ := strings.CutSuffix(filepath.Base(filename), ".txt")
+		for i, tt := range tdata {
+			tests = append(tests, cryptTest{
+				name: fmt.Sprintf("%s_%d", name, i+1),
+				key:  tt.key,
+				src:  tt.src,
+				dst:  make([]byte, blockSize),
+				want: tt.want,
+			})
+		}
+	}
+
+	return tests
+}
+
 func TestEncrypt(t *testing.T) {
-	tests := []encryptTest{
+	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
 			name: "valid key 1",
@@ -201,24 +232,7 @@ func TestEncrypt(t *testing.T) {
 		},
 	}
 
-	files, err := fs.Glob(testdataFS, "testdata/encrypt/*.txt")
-	if err != nil {
-		t.Fatalf("failed to read testdata: %s", err)
-	}
-
-	for _, filename := range files {
-		tdata := parseTestData(t, filename)
-		for i, tt := range tdata {
-			tests = append(tests, encryptTest{
-				name: fmt.Sprintf("%s_%d", filename, i+1),
-				key:  tt.key,
-				src:  tt.src,
-				dst:  make([]byte, blockSize),
-				want: tt.want,
-			})
-		}
-	}
-
+	tests = appendCryptTests(t, tests, encryptFolder)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer func() {
@@ -231,6 +245,50 @@ func TestEncrypt(t *testing.T) {
 			}
 
 			d.Encrypt(tt.dst, tt.src)
+			testutil.AssertDeepEqual(t, tt.dst, tt.want)
+		})
+	}
+}
+
+func TestDecrypt(t *testing.T) {
+	tests := []cryptTest{
+		{
+			// source: https://arxiv.org/pdf/2301.05530
+			name: "valid key 1",
+			key:  []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:  []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05},
+			dst:  make([]byte, blockSize),
+			want: []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF},
+		},
+		{
+			name:      "dst size mismatch",
+			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:       make([]byte, blockSize),
+			dst:       make([]byte, blockSize-1),
+			wantPanic: true,
+		},
+		{
+			name:      "src size mismatch",
+			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+			src:       make([]byte, blockSize-1),
+			dst:       make([]byte, blockSize),
+			wantPanic: true,
+		},
+	}
+
+	tests = appendCryptTests(t, tests, decryptFolder)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				testutil.AssertPanic(t, recover(), tt.wantPanic)
+			}()
+
+			d, err := NewDES(tt.key)
+			if err != nil {
+				t.Fatal("NewDES error:", err)
+			}
+
+			d.Decrypt(tt.dst, tt.src)
 			testutil.AssertDeepEqual(t, tt.dst, tt.want)
 		})
 	}
