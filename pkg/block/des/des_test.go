@@ -32,7 +32,7 @@ func TestNewDES(t *testing.T) {
 		},
 		{
 			// should produce the same key as the valid key test case
-			// because the implementation ignore parity bits
+			// because the implementation ignores parity bits
 			name: "parity bits ignored",
 			key:  []byte{0x12, 0x35, 0x56, 0x78, 0x9A, 0xBD, 0xDE, 0xF0},
 			want: [16]uint64{
@@ -116,8 +116,9 @@ func TestBlockSize(t *testing.T) {
 var testdataFS embed.FS
 
 const (
-	encryptFolder = "encrypt"
-	decryptFolder = "decrypt"
+	encryptFolder   = "encrypt"
+	decryptFolder   = "decrypt"
+	roundtripFolder = "roundtrip"
 )
 
 type testdata struct {
@@ -289,6 +290,23 @@ func TestDecrypt(t *testing.T) {
 			}
 
 			d.Decrypt(tt.dst, tt.src)
+			testutil.AssertDeepEqual(t, tt.dst, tt.want)
+		})
+	}
+}
+
+func TestRoundtrip(t *testing.T) {
+	var tests []cryptTest
+	tests = appendCryptTests(t, tests, roundtripFolder)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := NewDES(tt.key)
+			if err != nil {
+				t.Fatal("NewDES error:", err)
+			}
+
+			d.Encrypt(tt.dst, tt.src)
+			d.Decrypt(tt.dst, tt.dst)
 			testutil.AssertDeepEqual(t, tt.dst, tt.want)
 		})
 	}
