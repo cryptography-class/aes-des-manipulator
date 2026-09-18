@@ -182,6 +182,28 @@ type cryptTest struct {
 	wantPanic bool
 }
 
+func testCrypt(t *testing.T, tests []cryptTest, forward bool) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				testutil.AssertPanic(t, recover(), tt.wantPanic)
+			}()
+
+			d, err := NewDES(tt.key)
+			if err != nil {
+				t.Fatal("NewDES error:", err)
+			}
+
+			if forward {
+				d.Encrypt(tt.dst, tt.src)
+			} else {
+				d.Decrypt(tt.dst, tt.src)
+			}
+			testutil.AssertDeepEqual(t, tt.dst, tt.want)
+		})
+	}
+}
+
 func appendCryptTests(t *testing.T, tests []cryptTest, folder string) []cryptTest {
 	t.Helper()
 
@@ -234,21 +256,7 @@ func TestEncrypt(t *testing.T) {
 	}
 
 	tests = appendCryptTests(t, tests, encryptFolder)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				testutil.AssertPanic(t, recover(), tt.wantPanic)
-			}()
-
-			d, err := NewDES(tt.key)
-			if err != nil {
-				t.Fatal("NewDES error:", err)
-			}
-
-			d.Encrypt(tt.dst, tt.src)
-			testutil.AssertDeepEqual(t, tt.dst, tt.want)
-		})
-	}
+	testCrypt(t, tests, true)
 }
 
 func TestDecrypt(t *testing.T) {
@@ -278,21 +286,7 @@ func TestDecrypt(t *testing.T) {
 	}
 
 	tests = appendCryptTests(t, tests, decryptFolder)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				testutil.AssertPanic(t, recover(), tt.wantPanic)
-			}()
-
-			d, err := NewDES(tt.key)
-			if err != nil {
-				t.Fatal("NewDES error:", err)
-			}
-
-			d.Decrypt(tt.dst, tt.src)
-			testutil.AssertDeepEqual(t, tt.dst, tt.want)
-		})
-	}
+	testCrypt(t, tests, false)
 }
 
 func TestRoundtrip(t *testing.T) {
