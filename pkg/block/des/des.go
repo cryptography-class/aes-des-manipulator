@@ -9,16 +9,17 @@ import (
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
-// blockSize is the block size of des cipher.
+// blockSize is the block size of DES cipher.
 const blockSize = 8
 
 // des implements block.Cipher for the DES cipher.
+//
 // Spec: https://perso.telecom-paristech.fr/guilley/recherche/cryptoprocesseurs/fips/fips46-3.pdf
 type des struct {
 	subkeys [16]uint64
 }
 
-// NewDES initializes a new des cipher instance that implements block.Cipher.
+// NewDES initializes a new DES cipher instance that implements block.Cipher.
 // It generates 16 subkeys based on the provided key.
 // It errors when the length of the key is not 8 bytes or the key is nil.
 func NewDES(key []byte) (block.Cipher, error) {
@@ -53,11 +54,16 @@ func NewDES(key []byte) (block.Cipher, error) {
 }
 
 // BlockSize implements block.Cipher.
+//
+// The block size of the DES cipher is 8 bytes.
 func (d *des) BlockSize() int {
 	return blockSize
 }
 
-func (d *des) validateBlocks(dst, src []byte) {
+// crypt applies the DES cipher algorithm onto src in the direction specified by forward.
+// It records the result in dst.
+// // It panics when the size of dst or src is not exactly 8 bytes.
+func (d *des) crypt(dst, src []byte, forward bool) {
 	if len(src) != blockSize {
 		panic(fmt.Sprintf("des: src must be 8 bytes long, got: %d", len(src)))
 	}
@@ -65,10 +71,6 @@ func (d *des) validateBlocks(dst, src []byte) {
 	if len(dst) != blockSize {
 		panic(fmt.Sprintf("des: dst must be 8 bytes long, got: %d", len(dst)))
 	}
-}
-
-func (d *des) crypt(dst, src []byte, forward bool) {
-	d.validateBlocks(dst, src)
 
 	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
 	// at byte to uint64 and vice-versa conversions
@@ -84,7 +86,7 @@ func (d *des) crypt(dst, src []byte, forward bool) {
 		}
 		subkey := d.subkeys[i]
 
-		temp := d.processFeistelNetwork(uint64(right), subkey) ^ left
+		temp := d.feistelNetwork(uint64(right), subkey) ^ left
 
 		left = right
 		right = temp
@@ -95,34 +97,38 @@ func (d *des) crypt(dst, src []byte, forward bool) {
 }
 
 // Encrypt implements block.Cipher.
+//
+// It panics when the size of dst or src is not exactly 8 bytes.
 func (d *des) Encrypt(dst, src []byte) {
 	d.crypt(dst, src, true)
 }
 
 // Decrypt implements block.Cipher.
+//
+// It panics when the size of dst or src is not exactly 8 bytes.
 func (d *des) Decrypt(dst, src []byte) {
 	d.crypt(dst, src, false)
 }
 
-func (d *des) processFeistelNetwork(in uint64, subkey uint64) uint32 {
-	out := bits.Permute(in, 32, eTable) ^ subkey
-	out = d.processSBoxes(out)
+// feistelNetwork applies the feistel network transformations onto in:
+//
+//  1. Expands in to 48 bits using eTable;
+//  2. XORs in with the provided subkey;
+//  3. Shrinks the result to 32 bits using precomputed sBoxLookup;
+//  4. Applies pTable to the result.
+func (d *des) feistelNetwork(in uint64, subkey uint64) uint32 {
+	x := bits.Permute(in, 32, eTable) ^ subkey
 
-	return uint32(bits.Permute(out, 32, pTable))
-}
-
-// TODO: REPLACE WITH A PRECOMUPTED MAP
-func (d *des) processSBoxes(in uint64) uint64 {
-	var out uint64
-	for i, box := range sBoxes {
-		temp := in >> (48 - 6*(i+1)) & 0b111111
-
-		row := (bits.GetBit[uint64](temp, 6, 1) << 1) | bits.GetBit[uint64](temp, 6, 6)
-		column := (temp >> 1) & 0b1111
-
-		// append 4 bits into out based on row and column
-		out = out<<4 | box[row*sBoxRowSize+column]
-	}
+	// loop unwinding is faster
+	var out uint32
+	out |= sBoxLookup[0][(x>>42)&0b0111111]
+	out |= sBoxLookup[1][(x>>36)&0b0111111]
+	out |= sBoxLookup[2][(x>>30)&0b0111111]
+	out |= sBoxLookup[3][(x>>24)&0b0111111]
+	out |= sBoxLookup[4][(x>>18)&0b0111111]
+	out |= sBoxLookup[5][(x>>12)&0b0111111]
+	out |= sBoxLookup[6][(x>>6)&0b0111111]
+	out |= sBoxLookup[7][x&0b0111111]
 
 	return out
 }

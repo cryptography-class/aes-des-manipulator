@@ -1,5 +1,7 @@
 package des
 
+import "github.com/cryptography-class/aes-des-manipulator/internal/bits"
+
 // pc1Table is the table that defines how the initial 64-bit DES key
 // is split into 2 28-bit parts. Entries are 1-indexed.
 var pc1Table = []int{
@@ -70,7 +72,22 @@ var eTable = []int{
 	28, 29, 30, 31, 32, 1,
 }
 
-// TODO: ADD INIT WITH PRECOMPUTED spTable
+// sBoxLookup is a precomputed lookup table that combines sBoxes and pTable.
+var sBoxLookup [8][64]uint32
+
+func init() {
+	for box := range 8 {
+		for input := range 64 {
+			row := ((input & 0b100000) >> 4) | (input & 0b01)
+			column := (input >> 1) & 0b1111
+
+			sBoxOut := uint32(sBoxes[box][row*sBoxRowSize+column])
+			shifted := sBoxOut << (28 - 4*box)
+
+			sBoxLookup[box][input] = bits.Permute(shifted, 32, pTable)
+		}
+	}
+}
 
 // ipTable is the table that defines how the 32-bit parts are permuted.
 // Entries are 1-indexed.
