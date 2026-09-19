@@ -2,11 +2,7 @@ package des
 
 import (
 	"embed"
-	"encoding/hex"
 	"fmt"
-	"io/fs"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/testutil"
@@ -112,66 +108,14 @@ func TestBlockSize(t *testing.T) {
 // "Validating the Correctness of Hardware Implementations of the NBS Data Encryption Standard"
 // NBS Special Publication 500-20, 1980.
 
-//go:embed testdata/**/*.txt
+//go:embed testdata/*/*.txt
 var testdataFS embed.FS
 
 const (
-	encryptFolder   = "encrypt"
-	decryptFolder   = "decrypt"
-	roundtripFolder = "roundtrip"
+	encryptMatch   = "testdata/encrypt/*.txt"
+	decryptMatch   = "testdata/decrypt/*.txt"
+	roundtripMatch = "testdata/roundtrip/*.txt"
 )
-
-type testdata struct {
-	key  []byte
-	src  []byte
-	want []byte
-}
-
-func parseTestData(t *testing.T, filename string) []testdata {
-	t.Helper()
-
-	read, err := testdataFS.ReadFile(filename)
-	if err != nil {
-		t.Fatalf("%s: failed to read testdata: %s", filename, err)
-	}
-	data := string(read)
-
-	var out []testdata
-	for raw := range strings.SplitSeq(data, ",") {
-		raw := strings.TrimSpace(raw)
-		if raw == "" {
-			continue
-		}
-
-		row := strings.Fields(raw)
-		if len(row) != 3 {
-			t.Fatalf("%s: %s expected 3 parts, got: %d", filename, raw, len(row))
-		}
-
-		out = append(out, testdata{
-			key:  parseHex(t, filename, row[0]),
-			src:  parseHex(t, filename, row[1]),
-			want: parseHex(t, filename, row[2]),
-		})
-	}
-
-	return out
-}
-
-func parseHex(t *testing.T, filename string, raw string) []byte {
-	t.Helper()
-
-	b, err := hex.DecodeString(raw)
-	if err != nil {
-		t.Fatalf("%s: failed to decode hex: %s", filename, err)
-	}
-
-	if len(b) != 8 {
-		t.Fatalf("%s: expected 8 bytes, got %d: %q", filename, len(b), raw)
-	}
-
-	return b
-}
 
 type cryptTest struct {
 	name      string
@@ -180,6 +124,35 @@ type cryptTest struct {
 	dst       []byte
 	want      []byte
 	wantPanic bool
+}
+
+func (ct cryptTest) Parse(name string, fields []string) (cryptTest, error) {
+	if len(fields) != 3 {
+		return cryptTest{}, fmt.Errorf("%s: expected 3 fields, got: %d", name, len(fields))
+	}
+
+	key, err := testutil.ParseHex(name, fields[0], blockSize)
+	if err != nil {
+		return cryptTest{}, err
+	}
+
+	src, err := testutil.ParseHex(name, fields[1], blockSize)
+	if err != nil {
+		return cryptTest{}, err
+	}
+
+	want, err := testutil.ParseHex(name, fields[2], blockSize)
+	if err != nil {
+		return cryptTest{}, err
+	}
+
+	return cryptTest{
+		name: name,
+		key:  key,
+		src:  src,
+		dst:  make([]byte, blockSize),
+		want: want,
+	}, nil
 }
 
 func testCrypt(t *testing.T, tests []cryptTest, forward bool) {
@@ -204,32 +177,12 @@ func testCrypt(t *testing.T, tests []cryptTest, forward bool) {
 	}
 }
 
-func appendCryptTests(t *testing.T, tests []cryptTest, folder string) []cryptTest {
-	t.Helper()
-
-	files, err := fs.Glob(testdataFS, fmt.Sprintf("testdata/%s/*.txt", folder))
-	if err != nil {
-		t.Fatalf("failed to read testdata: %s", err)
-	}
-
-	for _, filename := range files {
-		tdata := parseTestData(t, filename)
-		name, _ := strings.CutSuffix(filepath.Base(filename), ".txt")
-		for i, tt := range tdata {
-			tests = append(tests, cryptTest{
-				name: fmt.Sprintf("%s_%d", name, i+1),
-				key:  tt.key,
-				src:  tt.src,
-				dst:  make([]byte, blockSize),
-				want: tt.want,
-			})
-		}
-	}
-
-	return tests
-}
-
 func TestEncrypt(t *testing.T) {
+	folder := &testutil.TestFolder{
+		FS:    &testdataFS,
+		Match: encryptMatch,
+	}
+
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -255,11 +208,16 @@ func TestEncrypt(t *testing.T) {
 		},
 	}
 
-	tests = appendCryptTests(t, tests, encryptFolder)
+	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, true)
 }
 
 func TestDecrypt(t *testing.T) {
+	folder := &testutil.TestFolder{
+		FS:    &testdataFS,
+		Match: decryptMatch,
+	}
+
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -285,13 +243,17 @@ func TestDecrypt(t *testing.T) {
 		},
 	}
 
-	tests = appendCryptTests(t, tests, decryptFolder)
+	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, false)
 }
 
 func TestRoundtrip(t *testing.T) {
-	var tests []cryptTest
-	tests = appendCryptTests(t, tests, roundtripFolder)
+	folder := &testutil.TestFolder{
+		FS:    &testdataFS,
+		Match: roundtripMatch,
+	}
+
+	tests := append([]cryptTest{}, testutil.ParseTests[cryptTest](t, folder)...)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d, err := NewDES(tt.key)
