@@ -1,3 +1,4 @@
+// Package bits implements functions for bitwise operations.
 package bits
 
 // unsigned represents all unsigned integers.
