@@ -1,3 +1,4 @@
+// Package testutil implements generic utils for testing and unit test parsing.
 package testutil
 
 import (
@@ -78,7 +79,7 @@ func ParseTests[T TestCaseParser[T]](t *testing.T, folder *TestFolder) []T {
 func ParseHex(name string, raw string, wantLen int) ([]byte, error) {
 	b, err := hex.DecodeString(raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to decode hex %s: %s", name, raw, err)
+		return nil, fmt.Errorf("%s: failed to decode hex %s: %w", name, raw, err)
 	}
 
 	if len(b) != wantLen {
