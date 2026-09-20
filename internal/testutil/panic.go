@@ -1,6 +1,9 @@
 package testutil
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // AssertPanic checks recover against whether a panic was expected.
 // Should run in a defer statement.
@@ -26,5 +29,14 @@ func AssertNilError(t *testing.T, got error, wantError bool) {
 
 	if !wantError && got != nil {
 		t.Errorf("unexpected error: %v", got)
+	}
+}
+
+// AssertError checks got against want error using errors.Is.
+func AssertError(t *testing.T, got error, want error) {
+	t.Helper()
+
+	if !errors.Is(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
