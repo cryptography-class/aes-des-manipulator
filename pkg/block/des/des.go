@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/bits"
+	"github.com/cryptography-class/aes-des-manipulator/internal/overlap"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
@@ -22,6 +23,8 @@ type des struct {
 // NewDES initializes a new DES cipher instance that implements block.Cipher.
 // It generates 16 subkeys based on the provided key.
 // It errors when the length of the key is not 8 bytes or the key is nil.
+// DES is a deprecated cipher and should NOT be used in any projects.
+// This implementation is for educational purposes.
 func NewDES(key []byte) (block.Cipher, error) {
 	if key == nil {
 		return nil, fmt.Errorf("des: key must not be nil")
@@ -70,6 +73,10 @@ func (d *des) crypt(dst, src []byte, forward bool) {
 
 	if len(dst) != blockSize {
 		panic(fmt.Sprintf("des: dst must be 8 bytes long, got: %d", len(dst)))
+	}
+
+	if overlap.InexactOverlap(dst, src) {
+		panic("des: dst and src must not partially overlap")
 	}
 
 	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
