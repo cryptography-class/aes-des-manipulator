@@ -13,7 +13,7 @@ type ecbEncrypter struct {
 // block cipher.
 // It encrypts blocks one after another, preserving patterns, which
 // makes it cryptographically weak.
-// It panics when cipher is null.
+// It panics when cipher is nil.
 func NewECBEncrypter(cipher block.Cipher) Crypter {
 	if cipher == nil {
 		panic("mode: cipher must not be nil")
@@ -56,7 +56,7 @@ type ecbDecrypter struct {
 // NewECBDecrypter initializes a new ECB Decrypter with the provided
 // block cipher.
 // It decrypts blocks one after another.
-// It panics when cipher is null.
+// It panics when cipher is nil.
 func NewECBDecrypter(cipher block.Cipher) Crypter {
 	if cipher == nil {
 		panic("mode: cipher must not be nil")
