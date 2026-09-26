@@ -1,6 +1,8 @@
 package mode
 
-import "github.com/cryptography-class/aes-des-manipulator/pkg/block"
+import (
+	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
+)
 
 // ecbEncrypter implements Crypter.
 type ecbEncrypter struct {
@@ -11,7 +13,12 @@ type ecbEncrypter struct {
 // block cipher.
 // It encrypts blocks one after another, preserving patterns, which
 // makes it cryptographically weak.
+// It panics when cipher is null.
 func NewECBEncrypter(cipher block.Cipher) Crypter {
+	if cipher == nil {
+		panic("mode: cipher must not be nil")
+	}
+
 	return &ecbEncrypter{
 		cipher: cipher,
 	}
@@ -49,7 +56,12 @@ type ecbDecrypter struct {
 // NewECBDecrypter initializes a new ECB Decrypter with the provided
 // block cipher.
 // It decrypts blocks one after another.
+// It panics when cipher is null.
 func NewECBDecrypter(cipher block.Cipher) Crypter {
+	if cipher == nil {
+		panic("mode: cipher must not be nil")
+	}
+
 	return &ecbDecrypter{
 		cipher: cipher,
 	}
