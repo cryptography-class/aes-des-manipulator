@@ -23,7 +23,7 @@ func checkBlocks(dst []byte, src []byte, blockSize int) error {
 		return ErrLengthMismatch
 	}
 
-	if len(src)%blockSize != 0 {
+	if len(src) == 0 || len(src)%blockSize != 0 {
 		return ErrNotFullBlocks
 	}
 
