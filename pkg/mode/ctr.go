@@ -65,6 +65,9 @@ func (e *ctrCrypter) BlockSize() int {
 // Crypt implements Crypter.
 //
 // It turns a provided block.Cipher into a stream cipher.
+// Unlike block modes, src may have any length, including zero.
+// Keystream state carries over between calls, so successive calls
+// behave like a single call on the concatenated input.
 func (e *ctrCrypter) Crypt(dst, src []byte) error {
 	if err := checkOverlap(dst, src); err != nil {
 		return err

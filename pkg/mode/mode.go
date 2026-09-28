@@ -11,7 +11,8 @@ type Crypter interface {
 	// Crypt applies the mode's encryption or decryption algorithm to src
 	// and writes the result into dst.
 	// Dst and src must overlap entirely or not at all, and both must be
-	// the same length, a non-zero multiple of BlockSize bytes.
+	// the same length. Block modes (ECB, CBC) additionally require a
+	// non-zero multiple of BlockSize bytes; stream modes (CTR) accept any length.
 	// It should error where the underlying cipher would panic.
 	Crypt(dst, src []byte) error
 }
