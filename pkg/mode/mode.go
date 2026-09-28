@@ -19,12 +19,22 @@ type Crypter interface {
 // checkBlocks checks whether dst and src have the same length,
 // which is a multiple of blockSize, and overlap entirely or not at all.
 func checkBlocks(dst []byte, src []byte, blockSize int) error {
-	if len(dst) != len(src) {
-		return ErrLengthMismatch
+	if err := checkOverlap(dst, src); err != nil {
+		return err
 	}
 
 	if len(src) == 0 || len(src)%blockSize != 0 {
 		return ErrNotFullBlocks
+	}
+
+	return nil
+}
+
+// checkOverlap checks whether dst and src have an equal length
+// and overlap entire or not at all.
+func checkOverlap(dst, src []byte) error {
+	if len(dst) != len(src) {
+		return ErrLengthMismatch
 	}
 
 	if overlap.InexactOverlap(dst, src) {
