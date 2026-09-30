@@ -3,6 +3,12 @@ package padding
 
 import "crypto/subtle"
 
+// Padder wraps a padding scheme.
+type Padder struct {
+	PadFunc
+	UnpadFunc
+}
+
 // PadFunc pads data to a multiple of blockSize.
 type PadFunc func(data []byte, blockSize int) []byte
 

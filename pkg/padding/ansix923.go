@@ -1,5 +1,13 @@
 package padding
 
+// NewANSIX923 returns an ANSIX9.23 padder.
+func NewANSIX923() Padder {
+	return Padder{
+		PadFunc:   ANSIX923Pad,
+		UnpadFunc: ANSIX923Unpad,
+	}
+}
+
 // ANSIX923Pad applies the ANSIX9.23 padding scheme to data with the provided blockSize.
 // It appends a full extra block when len(data) % blockSize == 0.
 // It panics when blockSize is not in (0; 255].
