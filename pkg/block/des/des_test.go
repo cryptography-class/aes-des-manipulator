@@ -181,13 +181,37 @@ func testCrypt(t *testing.T, tests []cryptTest, forward bool) {
 	}
 }
 
+var buffer = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+var edgeCases = []cryptTest{
+	{
+		name:      "dst size mismatch",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       make([]byte, blockSize),
+		dst:       make([]byte, blockSize-1),
+		wantPanic: true,
+	},
+	{
+		name:      "src size mismatch",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       make([]byte, blockSize-1),
+		dst:       make([]byte, blockSize),
+		wantPanic: true,
+	},
+	{
+		name:      "dst and src partially overlap",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       buffer[:8],
+		dst:       buffer[1:],
+		wantPanic: true,
+	},
+}
+
 func TestEncrypt(t *testing.T) {
 	folder := &testutil.TestFolder{
 		FS:    &testdataFS,
 		Match: encryptMatch,
 	}
 
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -197,29 +221,9 @@ func TestEncrypt(t *testing.T) {
 			dst:  make([]byte, blockSize),
 			want: []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05},
 		},
-		{
-			name:      "dst size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize),
-			dst:       make([]byte, blockSize-1),
-			wantPanic: true,
-		},
-		{
-			name:      "src size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize-1),
-			dst:       make([]byte, blockSize),
-			wantPanic: true,
-		},
-		{
-			name:      "dst and src partially overlap",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer[:8],
-			dst:       buffer[1:],
-			wantPanic: true,
-		},
 	}
 
+	tests = append(tests, edgeCases...)
 	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, true)
 }
@@ -230,7 +234,6 @@ func TestDecrypt(t *testing.T) {
 		Match: decryptMatch,
 	}
 
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -240,29 +243,9 @@ func TestDecrypt(t *testing.T) {
 			dst:  make([]byte, blockSize),
 			want: []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF},
 		},
-		{
-			name:      "dst size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize),
-			dst:       make([]byte, blockSize-1),
-			wantPanic: true,
-		},
-		{
-			name:      "src size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize-1),
-			dst:       make([]byte, blockSize),
-			wantPanic: true,
-		},
-		{
-			name:      "dst and src partially overlap",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer[:8],
-			dst:       buffer[1:],
-			wantPanic: true,
-		},
 	}
 
+	tests = append(tests, edgeCases...)
 	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, false)
 }
