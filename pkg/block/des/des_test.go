@@ -89,11 +89,12 @@ func TestNewDES(t *testing.T) {
 			if !ok {
 				t.Fatalf("NewDES() did not return a des")
 			}
-			testutil.AssertEqual(t, d.subkeys, tt.want)
+			testutil.AssertEqual(t, d.enc, tt.want)
 		})
 	}
 }
 
+// TestBlockSize tests block size for the DES cipher.
 func TestBlockSize(t *testing.T) {
 	t.Run("block size", func(t *testing.T) {
 		var d des
@@ -117,6 +118,8 @@ const (
 	roundtripMatch = "testdata/roundtrip/*.txt"
 )
 
+// cryptTest is a test case for Encrypt/Decrypt/Roundtrip.
+// It implements testutil.TestCaseParser.
 type cryptTest struct {
 	name      string
 	key       []byte
@@ -126,6 +129,7 @@ type cryptTest struct {
 	wantPanic bool
 }
 
+// Parse implements testutil.TestCaseParser.
 func (ct cryptTest) Parse(name string, fields []string) (cryptTest, error) {
 	if len(fields) != 3 {
 		return cryptTest{}, fmt.Errorf("%s: expected 3 fields, got: %d", name, len(fields))
@@ -183,8 +187,7 @@ func TestEncrypt(t *testing.T) {
 		Match: encryptMatch,
 	}
 
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8}
-
+	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -211,7 +214,7 @@ func TestEncrypt(t *testing.T) {
 		{
 			name:      "dst and src partially overlap",
 			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer,
+			src:       buffer[:8],
 			dst:       buffer[1:],
 			wantPanic: true,
 		},
@@ -227,8 +230,7 @@ func TestDecrypt(t *testing.T) {
 		Match: decryptMatch,
 	}
 
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8}
-
+	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -255,7 +257,7 @@ func TestDecrypt(t *testing.T) {
 		{
 			name:      "dst and src partially overlap",
 			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer,
+			src:       buffer[:8],
 			dst:       buffer[1:],
 			wantPanic: true,
 		},
