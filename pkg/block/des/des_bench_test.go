@@ -49,6 +49,8 @@ func BenchmarkCryptoDESEncrypt(b *testing.B) {
 // BenchmarkCustomDESEncrypt-8       559311              2045 ns/op               0 B/op          0 allocs/op
 // after precomputed lookup:
 // BenchmarkCustomDESEncrypt-8      1000000              1160 ns/op               0 B/op          0 allocs/op
+// after feature/des-optimizations:
+// BenchmarkCustomDESEncrypt-8     11139744               136.1 ns/op             0 B/op          0 allocs/op
 func BenchmarkCustomDESEncrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
@@ -85,6 +87,8 @@ func BenchmarkCryptoDESDecrypt(b *testing.B) {
 // BenchmarkCustomDESDecrypt-8       576188              2038 ns/op               0 B/op          0 allocs/op
 // after precomputed lookup:
 // BenchmarkCustomDESDecrypt-8       995337              1168 ns/op               0 B/op          0 allocs/op
+// after feature/des-optimizations:
+// BenchmarkCustomDESDecrypt-8     10998619               111.5 ns/op             0 B/op          0 allocs/op
 func BenchmarkCustomDESDecrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
@@ -105,6 +109,8 @@ func BenchmarkCustomDESDecrypt(b *testing.B) {
 // BenchmarkFeistelNetwork-8         617511              1879 ns/op               0 B/op          0 allocs/op
 // after precomputed lookup:
 // BenchmarkFeistelNetwork-8        1203723               996.3 ns/op             0 B/op          0 allocs/op
+// after feature/des-optimizations:
+// BenchmarkFeistelNetwork-8       15255296                80.45 ns/op            0 B/op          0 allocs/op
 func BenchmarkFeistelNetwork(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	in := uint64(0) << 32
