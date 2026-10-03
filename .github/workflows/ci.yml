@@ -33,7 +33,7 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./... -race -coverprofile=coverage.out
+        run: go test ./pkg/... ./internal/... -race -coverprofile=coverage.out
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

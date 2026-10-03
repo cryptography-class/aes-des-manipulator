@@ -89,11 +89,12 @@ func TestNewDES(t *testing.T) {
 			if !ok {
 				t.Fatalf("NewDES() did not return a des")
 			}
-			testutil.AssertEqual(t, d.subkeys, tt.want)
+			testutil.AssertEqual(t, d.enc, tt.want)
 		})
 	}
 }
 
+// TestBlockSize tests block size for the DES cipher.
 func TestBlockSize(t *testing.T) {
 	t.Run("block size", func(t *testing.T) {
 		var d des
@@ -117,6 +118,8 @@ const (
 	roundtripMatch = "testdata/roundtrip/*.txt"
 )
 
+// cryptTest is a test case for Encrypt/Decrypt/Roundtrip.
+// It implements testutil.TestCaseParser.
 type cryptTest struct {
 	name      string
 	key       []byte
@@ -126,6 +129,7 @@ type cryptTest struct {
 	wantPanic bool
 }
 
+// Parse implements testutil.TestCaseParser.
 func (ct cryptTest) Parse(name string, fields []string) (cryptTest, error) {
 	if len(fields) != 3 {
 		return cryptTest{}, fmt.Errorf("%s: expected 3 fields, got: %d", name, len(fields))
@@ -177,13 +181,36 @@ func testCrypt(t *testing.T, tests []cryptTest, forward bool) {
 	}
 }
 
+var buffer = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+var edgeCases = []cryptTest{
+	{
+		name:      "dst size mismatch",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       make([]byte, blockSize),
+		dst:       make([]byte, blockSize-1),
+		wantPanic: true,
+	},
+	{
+		name:      "src size mismatch",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       make([]byte, blockSize-1),
+		dst:       make([]byte, blockSize),
+		wantPanic: true,
+	},
+	{
+		name:      "dst and src partially overlap",
+		key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
+		src:       buffer[:8],
+		dst:       buffer[1:],
+		wantPanic: true,
+	},
+}
+
 func TestEncrypt(t *testing.T) {
 	folder := &testutil.TestFolder{
 		FS:    &testdataFS,
 		Match: encryptMatch,
 	}
-
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	tests := []cryptTest{
 		{
@@ -194,29 +221,9 @@ func TestEncrypt(t *testing.T) {
 			dst:  make([]byte, blockSize),
 			want: []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05},
 		},
-		{
-			name:      "dst size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize),
-			dst:       make([]byte, blockSize-1),
-			wantPanic: true,
-		},
-		{
-			name:      "src size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize-1),
-			dst:       make([]byte, blockSize),
-			wantPanic: true,
-		},
-		{
-			name:      "dst and src partially overlap",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer,
-			dst:       buffer[1:],
-			wantPanic: true,
-		},
 	}
 
+	tests = append(tests, edgeCases...)
 	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, true)
 }
@@ -227,8 +234,6 @@ func TestDecrypt(t *testing.T) {
 		Match: decryptMatch,
 	}
 
-	buffer := []byte{1, 2, 3, 4, 5, 6, 7, 8}
-
 	tests := []cryptTest{
 		{
 			// source: https://arxiv.org/pdf/2301.05530
@@ -238,29 +243,9 @@ func TestDecrypt(t *testing.T) {
 			dst:  make([]byte, blockSize),
 			want: []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF},
 		},
-		{
-			name:      "dst size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize),
-			dst:       make([]byte, blockSize-1),
-			wantPanic: true,
-		},
-		{
-			name:      "src size mismatch",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       make([]byte, blockSize-1),
-			dst:       make([]byte, blockSize),
-			wantPanic: true,
-		},
-		{
-			name:      "dst and src partially overlap",
-			key:       []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1},
-			src:       buffer,
-			dst:       buffer[1:],
-			wantPanic: true,
-		},
 	}
 
+	tests = append(tests, edgeCases...)
 	tests = append(tests, testutil.ParseTests[cryptTest](t, folder)...)
 	testCrypt(t, tests, false)
 }
