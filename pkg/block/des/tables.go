@@ -2,6 +2,51 @@ package des
 
 import "github.com/cryptography-class/aes-des-manipulator/internal/bits"
 
+// sBoxLookup is a precomputed lookup table that combines sBoxes and pTable.
+var sBoxLookup [8][64]uint32
+
+func init() {
+	for box := range 8 {
+		for input := range 64 {
+			row := ((input & 0b100000) >> 4) | (input & 0b01)
+			column := (input >> 1) & 0b1111
+
+			sBoxOut := uint32(sBoxes[box][row*sBoxRowSize+column])
+			shifted := sBoxOut << (28 - 4*box)
+
+			sBoxLookup[box][input] = bits.Permute(shifted, 32, pTable)
+		}
+	}
+}
+
+// ipLookup is a precomputed ipTable for every possible byte.
+var ipLookup [8][256]uint64
+
+// ipReverseLookup is a precomputed ipReverseTable for every possible byte.
+var ipReverseLookup [8][256]uint64
+
+func init() {
+	for i := range 8 {
+		for v := range 256 {
+			x := uint64(v) << (56 - 8*i)
+			ipLookup[i][v] = bits.Permute(x, 64, ipTable)
+			ipReverseLookup[i][v] = bits.Permute(x, 64, ipReverseTable)
+		}
+	}
+}
+
+// permute64 unwinds a bit loop over x and passes it through table.
+func permute64(table *[8][256]uint64, x uint64) uint64 {
+	return table[0][x>>56] |
+		table[1][byte(x>>48)] |
+		table[2][byte(x>>40)] |
+		table[3][byte(x>>32)] |
+		table[4][byte(x>>24)] |
+		table[5][byte(x>>16)] |
+		table[6][byte(x>>8)] |
+		table[7][byte(x)]
+}
+
 // pc1Table is the table that defines how the initial 64-bit DES key
 // is split into 2 28-bit parts. Entries are 1-indexed.
 var pc1Table = []int{
@@ -57,23 +102,6 @@ var ipReverseTable = []int{
 	35, 3, 43, 11, 51, 19, 59, 27,
 	34, 2, 42, 10, 50, 18, 58, 26,
 	33, 1, 41, 9, 49, 17, 57, 25,
-}
-
-// sBoxLookup is a precomputed lookup table that combines sBoxes and pTable.
-var sBoxLookup [8][64]uint32
-
-func init() {
-	for box := range 8 {
-		for input := range 64 {
-			row := ((input & 0b100000) >> 4) | (input & 0b01)
-			column := (input >> 1) & 0b1111
-
-			sBoxOut := uint32(sBoxes[box][row*sBoxRowSize+column])
-			shifted := sBoxOut << (28 - 4*box)
-
-			sBoxLookup[box][input] = bits.Permute(shifted, 32, pTable)
-		}
-	}
 }
 
 // ipTable is the table that defines how the 32-bit parts are permuted.

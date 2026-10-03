@@ -85,7 +85,7 @@ func (d *des) crypt(dst, src []byte, keys *[16]uint64) {
 	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast
 	// at byte to uint64 and vice-versa conversions
 	inBits := binary.BigEndian.Uint64(src)
-	inBits = bits.Permute(inBits, 64, ipTable)
+	inBits = permute64(&ipLookup, inBits)
 
 	left := uint32(inBits >> 32)
 	right := uint32(inBits & 0xFFFFFFFF)
@@ -98,7 +98,7 @@ func (d *des) crypt(dst, src []byte, keys *[16]uint64) {
 	}
 
 	// swap the values after the 16th round and run them through ip reverse
-	binary.BigEndian.PutUint64(dst, bits.Permute(uint64(right)<<32|uint64(left), 64, ipReverseTable))
+	binary.BigEndian.PutUint64(dst, permute64(&ipReverseLookup, uint64(right)<<32|uint64(left)))
 }
 
 // Encrypt implements block.Cipher.
