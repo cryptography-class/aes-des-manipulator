@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
@@ -40,4 +41,21 @@ type runnerConfig struct {
 	cipher block.Cipher
 	padder *padding.Padder
 	iv     []byte
+}
+
+// newRunner builds the runner for the given mode and action.
+func newRunner(cfg runnerConfig) (Runner, error) {
+	switch cfg.mode {
+	case ECB:
+		return newECBRunner(cfg.cipher, cfg.padder, cfg.action)
+
+	case CBC:
+		panic("NOT IMPLEMENTED")
+
+	case CTR:
+		panic("NOT IMPLEMENTED")
+
+	default:
+		panic(fmt.Sprintf("newRunner: unknown mode %s", cfg.mode))
+	}
 }
