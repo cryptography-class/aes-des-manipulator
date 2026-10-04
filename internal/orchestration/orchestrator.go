@@ -59,7 +59,8 @@ func (r *Request) validate() error {
 	blockSize := int64(r.Cipher.BlockSize())
 	var errs []error
 
-	if r.HeaderLength < 0 || r.TrailerLength < 0 || r.HeaderLength > r.Src.Size() || r.TrailerLength > r.Src.Size()+r.HeaderLength {
+	size := r.Src.Size()
+	if r.HeaderLength < 0 || r.TrailerLength < 0 || r.HeaderLength > size || r.TrailerLength > size-r.HeaderLength {
 		errs = append(errs, fmt.Errorf("header (%d) and trailer (%d) do not fit in a %d byte file",
 			r.HeaderLength, r.TrailerLength, r.Src.Size()))
 	}
