@@ -50,7 +50,7 @@ func newRunner(cfg runnerConfig) (Runner, error) {
 		return newECBRunner(cfg.cipher, cfg.padder, cfg.action)
 
 	case CBC:
-		panic("NOT IMPLEMENTED")
+		return newCBCRunner(cfg.cipher, cfg.padder, cfg.iv, cfg.action)
 
 	case CTR:
 		panic("NOT IMPLEMENTED")
