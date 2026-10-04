@@ -1,8 +1,8 @@
 package padding
 
 // NewANSIX923 returns an ANSIX9.23 padder.
-func NewANSIX923() Padder {
-	return Padder{
+func NewANSIX923() *Padder {
+	return &Padder{
 		PadFunc:   ANSIX923Pad,
 		UnpadFunc: ANSIX923Unpad,
 	}

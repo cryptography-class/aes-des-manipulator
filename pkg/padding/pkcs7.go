@@ -1,8 +1,8 @@
 package padding
 
 // NewPKCS7 returns a PKCS#7 padder.
-func NewPKCS7() Padder {
-	return Padder{
+func NewPKCS7() *Padder {
+	return &Padder{
 		PadFunc:   PKCS7Pad,
 		UnpadFunc: PKCS7Unpad,
 	}
