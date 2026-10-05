@@ -94,10 +94,8 @@ func (r *ecbRunner) Run(ctx context.Context, job *job, opts Options) error {
 		g.Go(func() error {
 			buffer := make([]byte, opts.ChunkSizeBytes)
 			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				default:
+				if err := ctx.Err(); err != nil {
+					return err
 				}
 
 				index := counter.Add(1) - 1
