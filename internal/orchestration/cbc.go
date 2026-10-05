@@ -24,7 +24,14 @@ type cbcRunner struct {
 
 // newCBCRunner initializes a new cbcRunner with the provided cipher, iv and padder.
 // It errors when the length of the iv does not match cipher's blocksize.
+// It panics on an unknown action.
 func newCBCRunner(cipher block.Cipher, padder *padding.Padder, iv []byte, action Action) (*cbcRunner, error) {
+	switch action {
+	case Encrypt, Decrypt:
+	default:
+		panic("invalid action provided")
+	}
+
 	if len(iv) != cipher.BlockSize() {
 		return nil, fmt.Errorf("iv length must be %d bytes", cipher.BlockSize())
 	}
@@ -175,7 +182,7 @@ func (r *cbcRunner) encrypt(ctx context.Context, job *job, opts Options) error {
 	return g.Wait()
 }
 
-// decrypt procceses a job using an atomic counter and the provided amount of goroutines.
+// decrypt processes a job using an atomic counter and the provided amount of goroutines.
 func (r *cbcRunner) decrypt(ctx context.Context, job *job, opts Options) error {
 	blockSize := int64(r.cipher.BlockSize())
 	chunks := max((job.size+opts.ChunkSizeBytes-1)/opts.ChunkSizeBytes, 1)
@@ -247,6 +254,6 @@ func (r *cbcRunner) Run(ctx context.Context, job *job, opts Options) error {
 		return r.decrypt(ctx, job, opts)
 
 	default:
-		panic("invalid action provided")
+		panic("unreachable")
 	}
 }
