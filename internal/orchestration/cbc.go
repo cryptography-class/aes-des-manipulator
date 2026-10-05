@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/mode"
@@ -36,6 +37,7 @@ func newCBCRunner(cipher block.Cipher, padder *padding.Padder, iv []byte, action
 	}, nil
 }
 
+// PreRun implements Runner.
 func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err error) {
 	blockSize := int64(r.cipher.BlockSize())
 	switch r.action {
@@ -84,6 +86,7 @@ func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 	}
 }
 
+// encrypt processes a job using a 3-stage pipeline: reader, crypter and writer.
 func (r *cbcRunner) encrypt(ctx context.Context, job *job, opts Options) error {
 	blockSize := r.cipher.BlockSize()
 	chunks := max((job.size+opts.ChunkSizeBytes-1)/opts.ChunkSizeBytes, 1)
@@ -172,10 +175,69 @@ func (r *cbcRunner) encrypt(ctx context.Context, job *job, opts Options) error {
 	return g.Wait()
 }
 
+// decrypt procceses a job using an atomic counter and the provided amount of goroutines.
 func (r *cbcRunner) decrypt(ctx context.Context, job *job, opts Options) error {
-	panic("NOT IMPLEMENTED")
+	blockSize := int64(r.cipher.BlockSize())
+	chunks := max((job.size+opts.ChunkSizeBytes-1)/opts.ChunkSizeBytes, 1)
+	last := chunks - 1
+
+	var counter atomic.Int64
+
+	g, ctx := errgroup.WithContext(ctx)
+	for range min(int64(opts.Goroutines), chunks) {
+		g.Go(func() error {
+			buffer := make([]byte, blockSize+opts.ChunkSizeBytes)
+			for {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
+				index := counter.Add(1) - 1
+				if index >= chunks {
+					return nil
+				}
+
+				offset := index * opts.ChunkSizeBytes
+				want := min(opts.ChunkSizeBytes, job.size-offset)
+
+				iv := buffer[:blockSize]
+				data := buffer[blockSize : blockSize+want]
+
+				readBuf, readOff := data, offset
+				if index == 0 {
+					copy(iv, r.initialIv)
+				} else {
+					readBuf, readOff = buffer[:blockSize+want], offset-blockSize
+				}
+
+				n, err := job.src.ReadAt(readBuf, readOff)
+				if n != len(readBuf) {
+					return fmt.Errorf("short read at %d (%d/%d): %w", readOff, n, len(readBuf), err)
+				}
+
+				if err := mode.NewCBCDecrypter(r.cipher, iv).Crypt(data, data); err != nil {
+					return err
+				}
+
+				if index == last {
+					// unpad the last chunk/block
+					data, err = r.padder.UnpadFunc(data, int(blockSize))
+					if err != nil {
+						return fmt.Errorf("failed to unpad: %w", err)
+					}
+				}
+
+				if _, err := job.dst.WriteAt(data, offset); err != nil {
+					return err
+				}
+			}
+		})
+	}
+
+	return g.Wait()
 }
 
+// Run implements Runner.
 func (r *cbcRunner) Run(ctx context.Context, job *job, opts Options) error {
 	switch r.action {
 	case Encrypt:
