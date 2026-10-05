@@ -1,5 +1,5 @@
-// Package gen defines wrapped crypto/rand and IV utilities.
-package gen
+// Package rando defines wrapped crypto/rand and IV utilities.
+package rando
 
 import "crypto/rand"
 
