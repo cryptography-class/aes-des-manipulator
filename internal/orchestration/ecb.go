@@ -75,7 +75,7 @@ func (r *ecbRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 		return size - (blockSize - int64(len(plain))), nil
 
 	default:
-		panic("invalid action provided")
+		panic("unreachable")
 	}
 }
 
