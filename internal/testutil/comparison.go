@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -19,6 +20,15 @@ func AssertDeepEqual[T any](t *testing.T, got T, want T) {
 	t.Helper()
 
 	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got: %v, want: %v", got, want)
+	}
+}
+
+// AssertBytesEqual checks got againt want for bytes equality.
+func AssertBytesEqual(t *testing.T, got []byte, want []byte) {
+	t.Helper()
+
+	if !bytes.Equal(got, want) {
 		t.Errorf("got: %v, want: %v", got, want)
 	}
 }

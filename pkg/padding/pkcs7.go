@@ -1,5 +1,13 @@
 package padding
 
+// NewPKCS7 returns a PKCS#7 padder.
+func NewPKCS7() *Padder {
+	return &Padder{
+		PadFunc:   PKCS7Pad,
+		UnpadFunc: PKCS7Unpad,
+	}
+}
+
 // PKCS7Pad applies the PKCS#7 padding scheme to data with the provided blockSize.
 // It appends a full extra block when len(data) % blockSize == 0.
 // It panics when blockSize is not in (0; 255].
