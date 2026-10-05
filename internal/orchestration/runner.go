@@ -53,7 +53,7 @@ func newRunner(cfg runnerConfig) (Runner, error) {
 		return newCBCRunner(cfg.cipher, cfg.padder, cfg.iv, cfg.action)
 
 	case CTR:
-		panic("NOT IMPLEMENTED")
+		return newCTRRunner(cfg.cipher, cfg.iv)
 
 	default:
 		panic(fmt.Sprintf("newRunner: unknown mode %s", cfg.mode))
