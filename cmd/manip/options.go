@@ -111,18 +111,19 @@ func (c *CommonOptions) Validate() error {
 		errs = append(errs, err)
 	}
 
-	allowedPadding, err := AllowedValue(flagPadding, c.padding, paddings)
-	if err != nil {
-		errs = append(errs, err)
+	var allowedPadding bool
+	if c.mode != CTRMode {
+		allowedPadding, err = AllowedValue(flagPadding, c.padding, paddings)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	} else {
+		// default CTR to none padding
+		c.padding = NonePadding
 	}
 
 	if c.keyFile == "" {
 		errs = append(errs, FlagError(flagKeyFile, fmt.Errorf("required")))
-	}
-
-	// default CTR to none padding
-	if allowedMode && c.mode == CTRMode {
-		c.padding = NonePadding
 	}
 
 	if allowedMode && allowedPadding && c.mode != CTRMode && c.padding == NonePadding {
