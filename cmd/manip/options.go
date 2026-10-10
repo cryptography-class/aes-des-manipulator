@@ -95,7 +95,7 @@ const (
 // AddFlags adds shared flags to the provided command.
 func (c *CommonOptions) AddFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&c.cipher, flagCipher, "", "block cipher: des")
+	f.StringVar(&c.cipher, flagCipher, "", "block cipher: des|std-des|std-aes")
 	f.StringVar(&c.mode, flagMode, "", "mode of operation: ecb|cbc|ctr")
 	f.StringVar(&c.padding, flagPadding, "", "padding scheme: pkcs7|ansix923|none")
 	f.StringVar(&c.keyFile, flagKeyFile, "", "path to file containing a hex key")

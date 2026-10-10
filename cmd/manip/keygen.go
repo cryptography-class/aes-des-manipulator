@@ -31,7 +31,7 @@ func NewKeygenOptions() *KeygenOptions {
 // AddFlags adds flags to the provided command.
 func (k *KeygenOptions) AddFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&k.cipher, flagCipher, "", "block cipher: des")
+	f.StringVar(&k.cipher, flagCipher, "", "block cipher: des|aes-128|aes-192|aes-256")
 }
 
 func (k *KeygenOptions) Complete(args []string) error {

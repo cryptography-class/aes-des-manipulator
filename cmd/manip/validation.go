@@ -1,6 +1,8 @@
 package main
 
 import (
+	stdaes "crypto/aes"
+	stddes "crypto/des"
 	"fmt"
 	"maps"
 	"os"
@@ -15,7 +17,12 @@ import (
 
 // constants for allowed values.
 const (
-	DESCipher = "des"
+	DESCipher    = "des"
+	STDDesCipher = "std-des"
+	AES128Cipher = "aes-128"
+	AES192Cipher = "aes-192"
+	AES256Cipher = "aes-256"
+	STDAesCipher = "std-aes"
 
 	ECBMode = "ecb"
 	CBCMode = "cbc"
@@ -89,6 +96,12 @@ var (
 	// ciphers are all the allowed ciphers.
 	ciphers = map[string]func(key []byte) (block.Cipher, error){
 		DESCipher: des.NewDES,
+		STDDesCipher: func(key []byte) (block.Cipher, error) {
+			return stddes.NewCipher(key)
+		},
+		STDAesCipher: func(key []byte) (block.Cipher, error) {
+			return stdaes.NewCipher(key)
+		},
 	}
 
 	// modes are all the allowed modes.
@@ -107,6 +120,9 @@ var (
 
 	// keys are all the allowed keys schemas.
 	keys = map[string]int{
-		DESCipher: des.KeyLength,
+		DESCipher:    des.KeyLength,
+		AES128Cipher: 16,
+		AES192Cipher: 24,
+		AES256Cipher: 32,
 	}
 )
