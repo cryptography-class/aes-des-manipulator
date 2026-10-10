@@ -75,9 +75,15 @@ func (e *EncryptOptions) Validate() error {
 		errs = append(errs, FlagError(flagIVFile, fmt.Errorf("is not used for ECB")))
 	}
 
+	// reject metadata files that point to destination
+	// as they would overwrite the file
+	if e.metadataFile == e.destination {
+		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("must differ from destination")))
+	}
+
 	_, err := os.Stat(e.metadataFile)
 	if err == nil {
-		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("already exists: %s", e.metadataFile)))
+		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("%s already exists", e.metadataFile)))
 	}
 
 	return errors.Join(errs...)
@@ -186,7 +192,14 @@ func (e *EncryptOptions) Run(ctx context.Context) error {
 	}
 
 	if err := e.dst.Commit(); err != nil {
-		_ = os.Remove(e.metadataFile)
+		// notify the user of the cleanup failure
+		if cleanupErr := os.Remove(e.metadataFile); cleanupErr != nil && !os.IsNotExist(cleanupErr) {
+			return fmt.Errorf(
+				"the program encountered an error while writing to disk: %w",
+				errors.Join(err, fmt.Errorf("metadata cleanup failed: %w", cleanupErr)),
+			)
+		}
+
 		return fmt.Errorf("the program encountered an error while writing to disk: %w", err)
 	}
 
