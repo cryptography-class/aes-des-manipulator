@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ecbRunner implements Runner for ECB.
+// ecbRunner implements runner for ECB.
 type ecbRunner struct {
 	crypter mode.Crypter
 	action  Action
@@ -42,7 +42,7 @@ func newECBRunner(cipher block.Cipher, padder *padding.Padder, action Action) (*
 	}, nil
 }
 
-// PreRun implements Runner.
+// PreRun implements runner.
 func (r *ecbRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err error) {
 	blockSize := int64(r.crypter.BlockSize())
 	switch r.action {
@@ -54,22 +54,22 @@ func (r *ecbRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 
 	case Decrypt:
 		if size == 0 || size%blockSize != 0 {
-			return 0, fmt.Errorf("ciphertext length %d is not a positive multiple of block size %d", size, blockSize)
+			return 0, fmt.Errorf("%w: ciphertext length %d is not a positive multiple of block size %d", ErrInvalidData, size, blockSize)
 		}
 
 		offset := size - blockSize
 		buffer := make([]byte, blockSize)
 		if n, err := src.ReadAt(buffer, offset); n != len(buffer) {
-			return 0, fmt.Errorf("short read at %d (%d/%d): %w", offset, n, len(buffer), err)
+			return 0, fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset, n, len(buffer), err)
 		}
 
 		if err := r.crypter.Crypt(buffer, buffer); err != nil {
-			return 0, fmt.Errorf("crypt failed at %d: %w", offset, err)
+			return 0, fmt.Errorf("%w: crypt failed at %d: %w", ErrInvalidData, offset, err)
 		}
 
 		plain, err := r.padder.UnpadFunc(buffer, int(blockSize))
 		if err != nil {
-			return 0, fmt.Errorf("failed to unpad: %w", err)
+			return 0, fmt.Errorf("%w: failed to unpad: %w", ErrInvalidPadding, err)
 		}
 
 		return size - (blockSize - int64(len(plain))), nil
@@ -79,7 +79,7 @@ func (r *ecbRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 	}
 }
 
-// Run implements Runner.
+// Run implements runner.
 //
 // It processes a job using an atomic counter and the provided amount of goroutines.
 func (r *ecbRunner) Run(ctx context.Context, job *job, opts Options) error {
@@ -108,7 +108,7 @@ func (r *ecbRunner) Run(ctx context.Context, job *job, opts Options) error {
 
 				n, err := job.src.ReadAt(buffer[:want], offset)
 				if int64(n) != want {
-					return fmt.Errorf("short read at %d (%d/%d): %w", offset, n, want, err)
+					return fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset, n, want, err)
 				}
 
 				data := buffer[:want]
@@ -118,7 +118,7 @@ func (r *ecbRunner) Run(ctx context.Context, job *job, opts Options) error {
 				}
 
 				if err := r.crypter.Crypt(data, data); err != nil {
-					return fmt.Errorf("crypt failed at %d: %w", offset, err)
+					return fmt.Errorf("%w: crypt failed at %d: %w", ErrInvalidData, offset, err)
 				}
 
 				if index == last && r.action == Decrypt {

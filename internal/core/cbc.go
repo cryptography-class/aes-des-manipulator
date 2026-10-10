@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// cbcRunner implements Runner for CBC.
+// cbcRunner implements runner for CBC.
 type cbcRunner struct {
 	cipher    block.Cipher
 	action    Action
@@ -44,7 +44,7 @@ func newCBCRunner(cipher block.Cipher, padder *padding.Padder, iv []byte, action
 	}, nil
 }
 
-// PreRun implements Runner.
+// PreRun implements runner.
 func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err error) {
 	blockSize := int64(r.cipher.BlockSize())
 	switch r.action {
@@ -56,7 +56,7 @@ func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 
 	case Decrypt:
 		if size == 0 || size%blockSize != 0 {
-			return 0, fmt.Errorf("ciphertext length %d is not a positive multiple of block size %d", size, blockSize)
+			return 0, fmt.Errorf("%w: ciphertext length %d is not a positive multiple of block size %d", ErrInvalidData, size, blockSize)
 		}
 
 		iv := r.initialIv
@@ -66,7 +66,7 @@ func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 			// iv is the previous ciphertext block
 			iv = make([]byte, blockSize)
 			if n, err := src.ReadAt(iv, offset-blockSize); n != len(iv) {
-				return 0, fmt.Errorf("short read at %d (%d/%d): %w", offset-blockSize, n, len(iv), err)
+				return 0, fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset-blockSize, n, len(iv), err)
 			}
 		}
 
@@ -74,16 +74,16 @@ func (r *cbcRunner) PreRun(src io.ReaderAt, size int64) (outSize int64, err erro
 		buffer := make([]byte, blockSize)
 
 		if n, err := src.ReadAt(buffer, offset); n != len(buffer) {
-			return 0, fmt.Errorf("short read at %d (%d/%d): %w", offset, n, len(buffer), err)
+			return 0, fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset, n, len(buffer), err)
 		}
 
 		if err := crypter.Crypt(buffer, buffer); err != nil {
-			return 0, fmt.Errorf("crypt failed at %d: %w", offset, err)
+			return 0, fmt.Errorf("%w: crypt failed at %d: %w", ErrInvalidData, offset, err)
 		}
 
 		plain, err := r.padder.UnpadFunc(buffer, int(blockSize))
 		if err != nil {
-			return 0, fmt.Errorf("failed to unpad: %w", err)
+			return 0, fmt.Errorf("%w: failed to unpad: %w", ErrInvalidPadding, err)
 		}
 
 		return size - (blockSize - int64(len(plain))), nil
@@ -122,7 +122,7 @@ func (r *cbcRunner) encrypt(ctx context.Context, job *job, opts Options) error {
 
 			n, err := job.src.ReadAt(*chunk, offset)
 			if int64(n) != want {
-				return fmt.Errorf("short read at %d (%d/%d): %w", offset, n, want, err)
+				return fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset, n, want, err)
 			}
 
 			select {
@@ -145,7 +145,7 @@ func (r *cbcRunner) encrypt(ctx context.Context, job *job, opts Options) error {
 			}
 
 			if err := crypter.Crypt(*chunk, *chunk); err != nil {
-				return fmt.Errorf("crypt failed: %w", err)
+				return fmt.Errorf("%w: crypt failed: %w", ErrInvalidData, err)
 			}
 
 			select {
@@ -219,18 +219,18 @@ func (r *cbcRunner) decrypt(ctx context.Context, job *job, opts Options) error {
 
 				n, err := job.src.ReadAt(readBuf, readOff)
 				if n != len(readBuf) {
-					return fmt.Errorf("short read at %d (%d/%d): %w", readOff, n, len(readBuf), err)
+					return fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, readOff, n, len(readBuf), err)
 				}
 
 				if err := mode.NewCBCDecrypter(r.cipher, iv).Crypt(data, data); err != nil {
-					return err
+					return fmt.Errorf("%w: crypt failed: %w", ErrInvalidData, err)
 				}
 
 				if index == last {
 					// unpad the last chunk/block
 					data, err = r.padder.UnpadFunc(data, int(blockSize))
 					if err != nil {
-						return fmt.Errorf("failed to unpad: %w", err)
+						return fmt.Errorf("%w: failed to unpad: %w", ErrInvalidPadding, err)
 					}
 				}
 
@@ -244,7 +244,7 @@ func (r *cbcRunner) decrypt(ctx context.Context, job *job, opts Options) error {
 	return g.Wait()
 }
 
-// Run implements Runner.
+// Run implements runner.
 func (r *cbcRunner) Run(ctx context.Context, job *job, opts Options) error {
 	switch r.action {
 	case Encrypt:
