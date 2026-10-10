@@ -104,4 +104,9 @@ var (
 		ANSIX923Padding: padding.NewANSIX923(),
 		NonePadding:     nil,
 	}
+
+	// keys are all the allowed keys schemas.
+	keys = map[string]int{
+		DESCipher: des.KeyLength,
+	}
 )
