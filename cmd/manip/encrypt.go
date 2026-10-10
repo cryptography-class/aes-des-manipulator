@@ -77,8 +77,13 @@ func (e *EncryptOptions) Validate() error {
 
 	// reject metadata files that point to destination
 	// as they would overwrite the file
-	if same, err := SameFile(e.metadataFile, e.destination); err == nil && same {
+	samePath := SamePath(e.metadataFile, e.destination)
+	if samePath {
 		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("must differ from destination")))
+	}
+
+	if same, err := SameFile(e.metadataFile, e.destination); err == nil && !samePath && same {
+		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("leads to destination, but must not")))
 	}
 
 	if err := FileNotExists(e.metadataFile); err != nil {

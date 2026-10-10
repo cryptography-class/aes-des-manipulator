@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -111,6 +113,22 @@ func SameFile(pathA, pathB string) (bool, error) {
 	}
 
 	return os.SameFile(fa, fb), nil
+}
+
+// SamePath checks whether pathA and pathB are the same.
+// It differs from SameFile as it does not catch symlinks.
+func SamePath(pathA, pathB string) bool {
+	absA, errA := filepath.Abs(pathA)
+	absB, errB := filepath.Abs(pathB)
+	if errA != nil || errB != nil {
+		return false
+	}
+
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(absA, absB)
+	}
+
+	return absA == absB
 }
 
 var (
