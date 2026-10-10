@@ -11,7 +11,13 @@ import (
 func ReadHex(path string) ([]byte, error) {
 	f, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		switch {
+		case os.IsNotExist(err):
+			return nil, fmt.Errorf("%s does not exist", path)
+
+		default:
+			return nil, err
+		}
 	}
 
 	b, err := hex.DecodeString(strings.TrimSpace(string(f)))
