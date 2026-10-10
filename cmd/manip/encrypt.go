@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/core"
+	"github.com/cryptography-class/aes-des-manipulator/internal/core/bench"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/rando"
 	"github.com/spf13/cobra"
 )
@@ -209,12 +210,15 @@ func (e *EncryptOptions) Run(ctx context.Context) error {
 // NewEncryptCmd builds an encrypt command.
 func NewEncryptCmd() *cobra.Command {
 	e := NewEncryptOptions()
-
 	cmd := &cobra.Command{
 		Use:   "encrypt <source> <destination> [options]",
 		Short: "Encrypt a file",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if verbose, _ := cmd.Flags().GetBool(flagVerbose); verbose {
+				defer bench.MeasurePerformance()()
+			}
+
 			if err := e.Complete(args); err != nil {
 				return err
 			}

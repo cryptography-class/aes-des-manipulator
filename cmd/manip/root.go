@@ -31,8 +31,14 @@ func Execute() {
 	}
 }
 
+// constants for argument and flag values.
+const (
+	flagVerbose = "verbose"
+)
+
 // init registers all commands in rootCmd.
 func init() {
+	rootCmd.PersistentFlags().BoolP(flagVerbose, "v", false, "enable verbose output")
 	rootCmd.AddCommand(
 		NewEncryptCmd(),
 	)
