@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/core"
 )
@@ -38,4 +39,25 @@ func WriteMetadata(path string, out core.Metadata) error {
 	}
 
 	return nil
+}
+
+// ReadMetadata reads metadata from the provided file.
+func ReadMetadata(path string) (core.Metadata, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		switch {
+		case os.IsNotExist(err):
+			return core.Metadata{}, fmt.Errorf("%s does not exist", path)
+
+		default:
+			return core.Metadata{}, fmt.Errorf("read metadata: %w", err)
+		}
+	}
+
+	var out core.Metadata
+	if err := json.Unmarshal(data, &out); err != nil {
+		return core.Metadata{}, fmt.Errorf("invalid metadata format")
+	}
+
+	return out, nil
 }

@@ -41,6 +41,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP(flagVerbose, "v", false, "enable verbose output")
 	rootCmd.AddCommand(
 		NewEncryptCmd(),
+		NewDecryptCmd(),
 		NewKeygenCmd(),
 	)
 }

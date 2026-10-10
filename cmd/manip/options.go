@@ -144,10 +144,6 @@ func (c *CommonOptions) Validate() error {
 		c.padding = NonePadding
 	}
 
-	if c.keyFile == "" {
-		errs = append(errs, FlagError(flagKeyFile, fmt.Errorf("required")))
-	}
-
 	if allowedMode && allowedPadding && c.mode != CTRMode && c.padding == NonePadding {
 		errs = append(errs, FlagError(flagMode, fmt.Errorf("%s requires padding", c.mode)))
 	}
