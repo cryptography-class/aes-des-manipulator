@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 
@@ -54,6 +55,34 @@ func AllowedValue[T any](flag string, value string, allowed map[string]T) (bool,
 	}
 
 	return true, nil
+}
+
+// FileExists checks whether the provided file exists.
+// It errors when the file does not exist or stat fails.
+func FileExists(path string) error {
+	_, err := os.Stat(path)
+	if err != nil {
+		switch {
+		case os.IsNotExist(err):
+			return fmt.Errorf("%s does not exist", path)
+
+		default:
+			return err
+		}
+	}
+
+	return nil
+}
+
+// FileNotExists checks whether the provided file does not exist.
+// It errors when the file exists.
+func FileNotExists(path string) error {
+	_, err := os.Stat(path)
+	if err == nil {
+		return fmt.Errorf("%s already exists", path)
+	}
+
+	return nil
 }
 
 var (

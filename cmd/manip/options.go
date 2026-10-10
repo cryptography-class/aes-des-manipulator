@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 
+	"github.com/cryptography-class/aes-des-manipulator/internal/core/bench"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +33,28 @@ type Options interface {
 
 	// Run executes the command flow.
 	Run(ctx context.Context) error
+}
+
+// ExecuteOptions executes the given options.
+// It's the body of all commands' RunE.
+func ExecuteOptions(opts Options, cmd *cobra.Command, args []string) error {
+	if verbose, _ := cmd.Flags().GetBool(flagVerbose); verbose {
+		defer bench.MeasurePerformance()()
+	}
+
+	if err := opts.Complete(args); err != nil {
+		return err
+	}
+
+	if err := opts.Validate(); err != nil {
+		return err
+	}
+
+	if err := opts.Resolve(); err != nil {
+		return err
+	}
+
+	return opts.Run(cmd.Context())
 }
 
 // CommonOptions are options shared by encrypt and decrypt commands.
@@ -146,31 +168,16 @@ func (c *CommonOptions) Validate() error {
 		errs = append(errs, FlagError(flagTrailerLength, fmt.Errorf("must be >= 0")))
 	}
 
-	_, err = os.Stat(c.source)
-	if err != nil {
-		switch {
-		case os.IsNotExist(err):
-			errs = append(errs, ArgumentError(argumentSource, fmt.Errorf("%s does not exist", c.source)))
-
-		default:
-			errs = append(errs, ArgumentError(argumentSource, err))
-		}
+	if err := FileExists(c.source); err != nil {
+		errs = append(errs, ArgumentError(argumentSource, err))
 	}
 
-	_, err = os.Stat(c.keyFile)
-	if err != nil {
-		switch {
-		case os.IsNotExist(err):
-			errs = append(errs, FlagError(flagKeyFile, fmt.Errorf("%s does not exist", c.keyFile)))
-
-		default:
-			errs = append(errs, FlagError(flagKeyFile, err))
-		}
+	if err := FileExists(c.keyFile); err != nil {
+		errs = append(errs, FlagError(flagKeyFile, err))
 	}
 
-	_, err = os.Stat(c.destination)
-	if err == nil {
-		errs = append(errs, ArgumentError(argumentDestination, fmt.Errorf("%s already exists", c.destination)))
+	if err := FileNotExists(c.destination); err != nil {
+		errs = append(errs, ArgumentError(argumentDestination, err))
 	}
 
 	return errors.Join(errs...)

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/core"
-	"github.com/cryptography-class/aes-des-manipulator/internal/core/bench"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/rando"
 	"github.com/spf13/cobra"
 )
@@ -82,9 +81,8 @@ func (e *EncryptOptions) Validate() error {
 		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("must differ from destination")))
 	}
 
-	_, err := os.Stat(e.metadataFile)
-	if err == nil {
-		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("%s already exists", e.metadataFile)))
+	if err := FileNotExists(e.metadataFile); err != nil {
+		errs = append(errs, FlagError(flagMetadataFile, err))
 	}
 
 	return errors.Join(errs...)
@@ -215,23 +213,7 @@ func NewEncryptCmd() *cobra.Command {
 		Short: "Encrypt a file",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if verbose, _ := cmd.Flags().GetBool(flagVerbose); verbose {
-				defer bench.MeasurePerformance()()
-			}
-
-			if err := e.Complete(args); err != nil {
-				return err
-			}
-
-			if err := e.Validate(); err != nil {
-				return err
-			}
-
-			if err := e.Resolve(); err != nil {
-				return err
-			}
-
-			return e.Run(cmd.Context())
+			return ExecuteOptions(e, cmd, args)
 		},
 	}
 
