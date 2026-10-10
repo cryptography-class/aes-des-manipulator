@@ -125,7 +125,7 @@ func (r *ecbRunner) Run(ctx context.Context, job *job, opts Options) error {
 					// unpad the last chunk/block
 					data, err = r.padder.UnpadFunc(data, blockSize)
 					if err != nil {
-						return fmt.Errorf("failed to unpad: %w", err)
+						return fmt.Errorf("%w: failed to unpad: %w", ErrInvalidPadding, err)
 					}
 				}
 
