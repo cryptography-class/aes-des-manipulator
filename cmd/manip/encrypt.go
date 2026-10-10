@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// EncryptOptions are options used by the encrypt command
+// EncryptOptions are options used by the encrypt command.
 type EncryptOptions struct {
 	CommonOptions
 

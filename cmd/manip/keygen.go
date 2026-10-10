@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// KeygenOptions are options used by the keygen command.
 type KeygenOptions struct {
 	// flags
 	cipher string
@@ -34,6 +35,7 @@ func (k *KeygenOptions) AddFlags(cmd *cobra.Command) {
 	f.StringVar(&k.cipher, flagCipher, "", "block cipher: des|aes-128|aes-192|aes-256")
 }
 
+// Complete implements Options.
 func (k *KeygenOptions) Complete(args []string) error {
 	k.destination = strings.TrimSpace(args[0])
 
@@ -42,6 +44,7 @@ func (k *KeygenOptions) Complete(args []string) error {
 	return nil
 }
 
+// Validate implements Options.
 func (k *KeygenOptions) Validate() error {
 	var errs []error
 	if _, err := AllowedValue(flagCipher, k.cipher, keys); err != nil {
@@ -55,6 +58,7 @@ func (k *KeygenOptions) Validate() error {
 	return errors.Join(errs...)
 }
 
+// Resolve implements Options.
 func (k *KeygenOptions) Resolve() (err error) {
 	k.dst, err = NewAtomicFileWriter(k.destination)
 	if err != nil {
@@ -66,6 +70,7 @@ func (k *KeygenOptions) Resolve() (err error) {
 	return nil
 }
 
+// Run implements Options.
 func (k *KeygenOptions) Run(_ context.Context) error {
 	defer func() {
 		_ = k.dst.Abort()
