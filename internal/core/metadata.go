@@ -1,12 +1,12 @@
 package core
 
-// MetadataVersion is the current version of MetadataSidecart's format.
-// It should be bumped when editing MetadataSidecart.
+// MetadataVersion is the current version of Metadata's format.
+// It should be bumped when editing Metadata.
 const MetadataVersion = 1
 
-// MetadataSidecart is a collection of non-sensitive values
+// Metadata is a collection of non-sensitive values
 // needed to decrypt a file.
-type MetadataSidecart struct {
+type Metadata struct {
 	Version       int    `json:"version"`
 	Cipher        string `json:"cipher"`
 	Mode          string `json:"mode"`
