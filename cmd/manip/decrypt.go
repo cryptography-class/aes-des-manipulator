@@ -43,9 +43,6 @@ func (d *DecryptOptions) AddFlags(cmd *cobra.Command) {
 
 // Complete implements Options.
 func (d *DecryptOptions) Complete(args []string) (err error) {
-	d.source = strings.TrimSpace(args[0])
-	d.destination = strings.TrimSpace(args[1])
-
 	d.metadataFile = strings.TrimSpace(d.metadataFile)
 	if d.metadataFile == "" {
 		d.metadataFile = d.source + defaultMetadataPostfix
@@ -62,15 +59,19 @@ func (d *DecryptOptions) Complete(args []string) (err error) {
 		return FlagError(flagMetadataFile, fmt.Errorf("invalid metadata version"))
 	}
 
-	d.cipher = CleanString(metadata.Cipher)
-	d.mode = CleanString(metadata.Mode)
-	d.padding = CleanString(metadata.PaddingScheme)
+	d.cipher = metadata.Cipher
+	d.mode = metadata.Mode
+	d.padding = metadata.PaddingScheme
 	d.headerLength = metadata.HeaderLength
 	d.trailerLength = metadata.TrailerLength
 
+	if err := d.CommonOptions.Complete(args); err != nil {
+		return err
+	}
+
 	d.iv, err = hex.DecodeString(metadata.IV)
 	if err != nil {
-		return FlagError(flagIVFile, fmt.Errorf("not a valid hex"))
+		return FlagError(flagMetadataFile, fmt.Errorf("iv is not a valid hex"))
 	}
 
 	return nil
@@ -147,7 +148,9 @@ func (d *DecryptOptions) Resolve() (err error) {
 // Run implements Options.
 func (d *DecryptOptions) Run(ctx context.Context) error {
 	defer func() {
-		_ = d.dst.Abort()
+		if err := d.dst.Abort(); err != nil {
+			fmt.Println("Destination Cleanup failed:", err)
+		}
 		_ = d.src.Close()
 	}()
 
@@ -161,10 +164,10 @@ func (d *DecryptOptions) Run(ctx context.Context) error {
 			return fmt.Errorf("the program encountered an error while processing a file: %w", err)
 
 		case errors.Is(err, core.ErrInvalidPadding):
-			return fmt.Errorf("the program encountered a padding error")
+			return fmt.Errorf("the program encountered a padding error: %w", err)
 
 		case errors.Is(err, context.Canceled):
-			return fmt.Errorf("the program was interrupted")
+			return fmt.Errorf("the program was interrupted: %w", err)
 
 		default:
 			return fmt.Errorf("[SYSTEM]: the program encountered an unrecoverable error: %w", err)

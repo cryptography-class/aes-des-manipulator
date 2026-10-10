@@ -154,7 +154,9 @@ func (e *EncryptOptions) Resolve() (err error) {
 // Run implements Options.
 func (e *EncryptOptions) Run(ctx context.Context) error {
 	defer func() {
-		_ = e.dst.Abort()
+		if err := e.dst.Abort(); err != nil {
+			fmt.Println("Destination Cleanup failed:", err)
+		}
 		_ = e.src.Close()
 	}()
 
@@ -168,10 +170,10 @@ func (e *EncryptOptions) Run(ctx context.Context) error {
 			return fmt.Errorf("the program encountered an error while processing a file: %w", err)
 
 		case errors.Is(err, core.ErrInvalidPadding):
-			return fmt.Errorf("the program encountered a padding error")
+			return fmt.Errorf("the program encountered a padding error: %w", err)
 
 		case errors.Is(err, context.Canceled):
-			return fmt.Errorf("the program was interrupted")
+			return fmt.Errorf("the program was interrupted: %w", err)
 
 		default:
 			return fmt.Errorf("[SYSTEM]: the program encountered an unrecoverable error: %w", err)

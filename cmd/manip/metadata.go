@@ -56,7 +56,7 @@ func ReadMetadata(path string) (core.Metadata, error) {
 
 	var out core.Metadata
 	if err := json.Unmarshal(data, &out); err != nil {
-		return core.Metadata{}, fmt.Errorf("invalid metadata format")
+		return core.Metadata{}, fmt.Errorf("invalid metadata format: %w", err)
 	}
 
 	return out, nil
