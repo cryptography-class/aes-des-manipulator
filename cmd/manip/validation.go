@@ -3,7 +3,9 @@ package main
 import (
 	stdaes "crypto/aes"
 	stddes "crypto/des"
+	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"slices"
@@ -84,12 +86,31 @@ func FileExists(path string) error {
 // FileNotExists checks whether the provided file does not exist.
 // It errors when the file exists.
 func FileNotExists(path string) error {
-	_, err := os.Stat(path)
+	_, err := os.Lstat(path)
 	if err == nil {
 		return fmt.Errorf("%s already exists", path)
 	}
 
-	return nil
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	return fmt.Errorf("checking %s: %w", path, err)
+}
+
+// SameFile checks whether pathA and pathB lead to the same file.
+func SameFile(pathA, pathB string) (bool, error) {
+	fa, err := os.Stat(pathA)
+	if err != nil {
+		return false, err
+	}
+
+	fb, err := os.Stat(pathB)
+	if err != nil {
+		return false, err
+	}
+
+	return os.SameFile(fa, fb), nil
 }
 
 var (
