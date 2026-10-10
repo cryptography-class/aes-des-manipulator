@@ -10,6 +10,9 @@ import (
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
+// KeyLength is the length of DES cipher key.
+const KeyLength = 8
+
 // blockSize is the block size of DES cipher.
 const blockSize = 8
 
@@ -31,8 +34,8 @@ func NewDES(key []byte) (block.Cipher, error) {
 		return nil, fmt.Errorf("des: key must not be nil")
 	}
 
-	if len(key) != 8 {
-		return nil, fmt.Errorf("des: key must be 8 bytes long, got: %d", len(key))
+	if len(key) != KeyLength {
+		return nil, fmt.Errorf("des: key must be %d bytes long, got: %d", KeyLength, len(key))
 	}
 
 	// binary.BigEndian.Uint64 and binary.BigEndian.PutUint64 are exceptionally fast

@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 // Action is a crypt action.
 type Action int
