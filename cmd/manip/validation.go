@@ -100,6 +100,36 @@ func FileNotExists(path string) error {
 	return fmt.Errorf("checking %s: %w", path, err)
 }
 
+// ResolvePath returns an absolute, cleaned path in which symlinks are resolved
+// for the longest existing prefix.
+func ResolvePath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+
+	cur := filepath.Clean(abs)
+	var rest []string
+	for {
+		resolved, err := filepath.EvalSymlinks(cur)
+		if err == nil {
+			return filepath.Join(append([]string{resolved}, rest...)...), nil
+		}
+
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("resolving %s: %w", cur, err)
+		}
+
+		parent := filepath.Dir(cur)
+		if parent == cur { // reached the root without finding anything
+			return "", fmt.Errorf("resolving %s: %w", path, err)
+		}
+
+		rest = append([]string{filepath.Base(cur)}, rest...)
+		cur = parent
+	}
+}
+
 // SameFile checks whether pathA and pathB lead to the same file.
 func SameFile(pathA, pathB string) (bool, error) {
 	fa, err := os.Stat(pathA)
@@ -117,18 +147,22 @@ func SameFile(pathA, pathB string) (bool, error) {
 
 // SamePath checks whether pathA and pathB are the same.
 // It differs from SameFile as it does not catch symlinks.
-func SamePath(pathA, pathB string) bool {
-	absA, errA := filepath.Abs(pathA)
-	absB, errB := filepath.Abs(pathB)
-	if errA != nil || errB != nil {
-		return false
+func SamePath(pathA, pathB string) (bool, error) {
+	absA, err := ResolvePath(pathA)
+	if err != nil {
+		return false, err
+	}
+
+	absB, err := ResolvePath(pathB)
+	if err != nil {
+		return false, err
 	}
 
 	if runtime.GOOS == "windows" {
-		return strings.EqualFold(absA, absB)
+		return strings.EqualFold(absA, absB), nil
 	}
 
-	return absA == absB
+	return absA == absB, nil
 }
 
 var (
