@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 import (
 	"context"
@@ -9,14 +9,14 @@ import (
 	"github.com/cryptography-class/aes-des-manipulator/pkg/padding"
 )
 
-// Options is a Runner.Run concurrency configuration.
+// Options is a runner.Run concurrency configuration.
 type Options struct {
 	ChunkSizeBytes int64
 	Goroutines     int
 }
 
-// Runner is a logical processor of a Mode.
-type Runner interface {
+// runner is a logical processor of a job.
+type runner interface {
 	// PreRun validates padding with fast-failing for modes that require it
 	// and computes the output size.
 	PreRun(src io.ReaderAt, size int64) (outSize int64, err error)
@@ -26,7 +26,7 @@ type Runner interface {
 	Run(ctx context.Context, job *job, opts Options) error
 }
 
-// job is a single entity processed by Runner.Run.
+// job is a single entity processed by runner.Run.
 type job struct {
 	src io.ReaderAt
 	dst io.WriterAt
@@ -34,7 +34,7 @@ type job struct {
 	size int64
 }
 
-// runnerConfig is the configuration struct for a Runner.
+// runnerConfig is a configuration struct for a runner.
 type runnerConfig struct {
 	mode   Mode
 	action Action
@@ -43,8 +43,8 @@ type runnerConfig struct {
 	iv     []byte
 }
 
-// newRunner builds the runner for the given mode and action.
-func newRunner(cfg runnerConfig) (Runner, error) {
+// newRunner builds a runner for the given mode and action.
+func newRunner(cfg runnerConfig) (runner, error) {
 	switch cfg.mode {
 	case ECB:
 		return newECBRunner(cfg.cipher, cfg.padder, cfg.action)

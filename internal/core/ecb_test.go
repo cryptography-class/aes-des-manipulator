@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 import (
 	"io"
@@ -128,6 +128,7 @@ func TestECBRunnerPreRun(t *testing.T) {
 			outSize: 8,
 		},
 		{
+			// TODO: FIX THE WRONG TEST BEFORE RELEASE
 			name:    "valid pre-decrypt 1",
 			cipher:  cipher,
 			padder:  padder,
@@ -137,6 +138,7 @@ func TestECBRunnerPreRun(t *testing.T) {
 			outSize: 8,
 		},
 		{
+			// TODO: FIX THE WRONG TEST BEFORE RELEASE
 			name:    "valid pre-decrypt 2",
 			cipher:  cipher,
 			padder:  padder,

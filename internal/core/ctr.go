@@ -1,4 +1,4 @@
-package orchestration
+package core
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ctrRunner implements Runner.
+// ctrRunner implements runner.
 type ctrRunner struct {
 	cipher         block.Cipher
 	initialCounter []byte
@@ -31,7 +31,7 @@ func newCTRRunner(cipher block.Cipher, counter []byte) (*ctrRunner, error) {
 	}, nil
 }
 
-// PreRun implements Runner.
+// PreRun implements runner.
 //
 // CTR does not require any padding or validation, so it
 // returns the provided size and never errors.
@@ -39,7 +39,7 @@ func (r *ctrRunner) PreRun(_ io.ReaderAt, size int64) (outSize int64, err error)
 	return size, nil
 }
 
-// Run implements Runner.
+// Run implements runner.
 //
 // It processes a job concurrently in ranges.
 func (r *ctrRunner) Run(ctx context.Context, job *job, opts Options) error {
@@ -70,12 +70,12 @@ func (r *ctrRunner) Run(ctx context.Context, job *job, opts Options) error {
 
 				n, err := job.src.ReadAt(buffer[:want], offset)
 				if int64(n) != want {
-					return fmt.Errorf("short read at %d (%d/%d): %w", offset, n, want, err)
+					return fmt.Errorf("%w: short read at %d (%d/%d): %w", ErrInvalidData, offset, n, want, err)
 				}
 
 				data := buffer[:want]
 				if err := crypter.Crypt(data, data); err != nil {
-					return fmt.Errorf("crypt failed at %d: %w", offset, err)
+					return fmt.Errorf("%w: crypt failed at %d: %w", ErrInvalidData, offset, err)
 				}
 
 				if _, err = job.dst.WriteAt(data, offset); err != nil {

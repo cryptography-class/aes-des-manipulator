@@ -1,5 +1,5 @@
-// Package orchestration defines the processing layer that handles the core logic.
-package orchestration
+// Package core defines the processing layer that handles the core logic.
+package core
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/cryptography-class/aes-des-manipulator/pkg/padding"
 )
 
-// Request is the request processed by Orchestrator.
+// Request is a request processed by Orchestrator.
 type Request struct {
 	Action        Action
 	Mode          Mode
@@ -86,7 +86,7 @@ func (r *Request) validate() error {
 
 type Orchestrator struct{}
 
-// Process orchestrates a Runner to process the Request.
+// Process orchestrates a runner to process the Request.
 func (o *Orchestrator) Process(ctx context.Context, req *Request) error {
 	if err := req.validate(); err != nil {
 		return err
