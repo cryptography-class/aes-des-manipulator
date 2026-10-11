@@ -109,7 +109,7 @@ func (d *DecryptOptions) Resolve() (err error) {
 	padder := paddings[d.padding]
 
 	if mode != core.ECB && len(d.iv) != cipher.BlockSize() {
-		return FlagError(flagIVFile, fmt.Errorf("invalid IV size: %d, expected: %d", len(d.iv), cipher.BlockSize()))
+		return FlagError(flagMetadataFile, fmt.Errorf("invalid IV size: %d, expected: %d", len(d.iv), cipher.BlockSize()))
 	}
 
 	if d.src, err = NewAtomicFileReader(d.source); err != nil {
@@ -117,7 +117,7 @@ func (d *DecryptOptions) Resolve() (err error) {
 	}
 
 	if d.headerLength > d.src.Size() || d.trailerLength > d.src.Size()-d.headerLength {
-		return FlagError(flagHeaderLength+"/"+flagTrailerLength,
+		return FlagError(flagMetadataFile,
 			fmt.Errorf("invalid header and/or trailer lengths (%d %d) do not fit in %d file",
 				d.headerLength, d.trailerLength, d.src.Size()))
 	}
