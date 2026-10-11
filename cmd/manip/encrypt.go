@@ -157,12 +157,15 @@ func (e *EncryptOptions) Resolve() (err error) {
 }
 
 // Run implements Options.
-func (e *EncryptOptions) Run(ctx context.Context) error {
+func (e *EncryptOptions) Run(ctx context.Context) (err error) {
 	defer func() {
-		if err := e.dst.Abort(); err != nil {
-			fmt.Println("Destination Cleanup failed:", err)
+		if abortErr := e.dst.Abort(); abortErr != nil {
+			err = errors.Join(err, fmt.Errorf("partial file cleanup failed: %w", abortErr))
 		}
-		_ = e.src.Close()
+
+		if closeErr := e.src.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
 	}()
 
 	orch := &core.Orchestrator{}
