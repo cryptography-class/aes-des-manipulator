@@ -21,12 +21,15 @@ import (
 
 // constants for allowed values.
 const (
-	DESCipher    = "des"
-	STDDesCipher = "std-des"
-	AES128Cipher = "aes-128"
-	AES192Cipher = "aes-192"
-	AES256Cipher = "aes-256"
-	STDAesCipher = "std-aes"
+	DESCipher       = "des"
+	STDDesCipher    = "std-des"
+	STDAES128Cipher = "std-aes-128"
+	STDAES192Cipher = "std-aes-192"
+	STDAES256Cipher = "std-aes-256"
+
+	AES128KeyLength = 16
+	AES192KeyLength = 24
+	AES256KeyLength = 32
 
 	ECBMode = "ecb"
 	CBCMode = "cbc"
@@ -172,7 +175,25 @@ var (
 		STDDesCipher: func(key []byte) (block.Cipher, error) {
 			return stddes.NewCipher(key)
 		},
-		STDAesCipher: func(key []byte) (block.Cipher, error) {
+		STDAES128Cipher: func(key []byte) (block.Cipher, error) {
+			if len(key) != AES128KeyLength {
+				return nil, fmt.Errorf("invalid key length: %d, expected: %d", len(key), AES128KeyLength)
+			}
+
+			return stdaes.NewCipher(key)
+		},
+		STDAES192Cipher: func(key []byte) (block.Cipher, error) {
+			if len(key) != AES192KeyLength {
+				return nil, fmt.Errorf("invalid key length: %d, expected: %d", len(key), AES192KeyLength)
+			}
+
+			return stdaes.NewCipher(key)
+		},
+		STDAES256Cipher: func(key []byte) (block.Cipher, error) {
+			if len(key) != AES256KeyLength {
+				return nil, fmt.Errorf("invalid key length: %d, expected: %d", len(key), AES256KeyLength)
+			}
+
 			return stdaes.NewCipher(key)
 		},
 	}
@@ -193,9 +214,10 @@ var (
 
 	// keys are all the allowed keys schemas.
 	keys = map[string]int{
-		DESCipher:    des.KeyLength,
-		AES128Cipher: 16,
-		AES192Cipher: 24,
-		AES256Cipher: 32,
+		DESCipher:       des.KeyLength,
+		STDDesCipher:    des.KeyLength,
+		STDAES128Cipher: AES128KeyLength,
+		STDAES192Cipher: AES192KeyLength,
+		STDAES256Cipher: AES256KeyLength,
 	}
 )

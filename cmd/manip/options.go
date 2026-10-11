@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/core/bench"
@@ -95,9 +97,9 @@ const (
 // AddFlags adds shared flags to the provided command.
 func (c *CommonOptions) AddFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&c.cipher, flagCipher, "", "block cipher: des|std-des|std-aes")
-	f.StringVar(&c.mode, flagMode, "", "mode of operation: ecb|cbc|ctr")
-	f.StringVar(&c.padding, flagPadding, "", "padding scheme: pkcs7|ansix923|none")
+	f.StringVar(&c.cipher, flagCipher, "", "block cipher: "+strings.Join(slices.Sorted(maps.Keys(ciphers)), "|"))
+	f.StringVar(&c.mode, flagMode, "", "mode of operation: "+strings.Join(slices.Sorted(maps.Keys(modes)), "|"))
+	f.StringVar(&c.padding, flagPadding, "", "padding scheme: "+strings.Join(slices.Sorted(maps.Keys(paddings)), "|"))
 	f.StringVar(&c.keyFile, flagKeyFile, "", "path to file containing a hex key")
 	f.Int64Var(&c.chunkSize, flagChunkSize, 1<<20, "bytes processed per work unit")
 	f.IntVar(&c.goroutines, flagGoroutines, max(1, runtime.NumCPU()/2), "worker count")
