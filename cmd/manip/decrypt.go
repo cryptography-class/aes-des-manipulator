@@ -43,6 +43,12 @@ func (d *DecryptOptions) AddFlags(cmd *cobra.Command) {
 
 // Complete implements Options.
 func (d *DecryptOptions) Complete(args []string) (err error) {
+	// we do not call d.CommonOptions.Complete(args) as
+	// the complete flow for DecryptOptions requires reading
+	// the metadata from a file first
+	d.source = strings.TrimSpace(args[0])
+	d.destination = strings.TrimSpace(args[1])
+
 	d.metadataFile = strings.TrimSpace(d.metadataFile)
 	if d.metadataFile == "" {
 		d.metadataFile = d.source + defaultMetadataPostfix
@@ -59,15 +65,11 @@ func (d *DecryptOptions) Complete(args []string) (err error) {
 		return FlagError(flagMetadataFile, fmt.Errorf("invalid metadata version"))
 	}
 
-	d.cipher = metadata.Cipher
-	d.mode = metadata.Mode
-	d.padding = metadata.PaddingScheme
+	d.cipher = CleanString(metadata.Cipher)
+	d.mode = CleanString(metadata.Mode)
+	d.padding = CleanString(metadata.PaddingScheme)
 	d.headerLength = metadata.HeaderLength
 	d.trailerLength = metadata.TrailerLength
-
-	if err := d.CommonOptions.Complete(args); err != nil {
-		return err
-	}
 
 	d.iv, err = hex.DecodeString(metadata.IV)
 	if err != nil {
