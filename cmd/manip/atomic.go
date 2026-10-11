@@ -91,6 +91,11 @@ func NewAtomicFileReader(path string) (AtomicFileReader, error) {
 }
 
 // Commit implements AtomicFileWriter.
+// A Race Condiiton is possible if another process creates a file
+// with the name of destination between NewAtomicFileWriter and Commit
+// which may lead to a file loss.
+//
+// DEV NOTE: I do not want to fix this tbh.
 func (a *atomicFile) Commit() error {
 	if a.done {
 		return fmt.Errorf("atomic commit: file already processed")
