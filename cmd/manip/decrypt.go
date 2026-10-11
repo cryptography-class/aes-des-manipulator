@@ -87,7 +87,7 @@ func (d *DecryptOptions) Validate() (err error) {
 	}
 
 	if len(d.iv) != 0 && d.mode == ECBMode {
-		errs = append(errs, FlagError(flagIVFile, fmt.Errorf("is not used for ECB")))
+		errs = append(errs, FlagError(flagMetadataFile, fmt.Errorf("is not used for ECB")))
 	}
 
 	return errors.Join(errs...)

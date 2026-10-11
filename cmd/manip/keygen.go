@@ -71,10 +71,10 @@ func (k *KeygenOptions) Resolve() (err error) {
 }
 
 // Run implements Options.
-func (k *KeygenOptions) Run(_ context.Context) error {
-	defer func() {
-		_ = k.dst.Abort()
-	}()
+func (k *KeygenOptions) Run(_ context.Context) (err error) {
+	if abortErr := k.dst.Abort(); abortErr != nil {
+		err = errors.Join(err, fmt.Errorf("partial file cleanup failed: %w", abortErr))
+	}
 
 	key := rando.RandomBytes(k.keyLength)
 	if _, err := k.dst.WriteAt([]byte(hex.EncodeToString(key)), 0); err != nil {
