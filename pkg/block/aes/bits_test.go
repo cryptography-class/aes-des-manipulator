@@ -56,3 +56,33 @@ func TestMixColumns(t *testing.T) {
 		})
 	}
 }
+
+func TestInvMixColumns(t *testing.T) {
+	tests := []struct {
+		name string
+		in   uint32
+		want uint32
+	}{
+		{
+			name: "valid 1",
+			in:   0x8e4da1bc,
+			want: 0xdb135345,
+		},
+		{
+			name: "valid 2",
+			in:   0x9fdc589d,
+			want: 0xf20a225c,
+		},
+		{
+			name: "valid 3",
+			in:   0x01010101,
+			want: 0x01010101,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.AssertEqual(t, invMixColumn(tt.in), tt.want)
+		})
+	}
+}
