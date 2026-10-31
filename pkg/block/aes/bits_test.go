@@ -26,3 +26,33 @@ func TestSubWord(t *testing.T) {
 		})
 	}
 }
+
+func TestMixColumns(t *testing.T) {
+	tests := []struct {
+		name string
+		in   uint32
+		want uint32
+	}{
+		{
+			name: "valid 1",
+			in:   0xdb135345,
+			want: 0x8e4da1bc,
+		},
+		{
+			name: "valid 2",
+			in:   0xf20a225c,
+			want: 0x9fdc589d,
+		},
+		{
+			name: "valid 3",
+			in:   0x01010101,
+			want: 0x01010101,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.AssertEqual(t, mixColumn(tt.in), tt.want)
+		})
+	}
+}
