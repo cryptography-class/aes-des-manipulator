@@ -16,65 +16,85 @@ const (
 
 	// KeyLength128 is the length of AES-128 cipher key in bytes.
 	KeyLength128 = 16
+
+	// KeyLength192 is the length of AES-192 cipher key in bytes.
+	KeyLength192 = 24
+
+	// KeyLength256 is the length of AES-256 cipher key in bytes.
+	KeyLength256 = 32
 )
 
 const (
-	// keyWords128 is the length of AES-128 cipher key in 32-bit words.
-	keyWords128 = KeyLength128 / 4
 	// rounds128 is the amount of rounds in AES-128.
 	rounds128 = 10
+
+	// rounds192 is the amount of rounds in AES-192.
+	rounds192 = 12
+
+	// rounds256 is the amount of rounds in AES-256.
+	rounds256 = 14
 )
 
 // aes implements block.Cipher.
 //
 // Spec: https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf
 type aes struct {
-	// For now, we stick to AES-128, which is 10 round keys (40 words) + the initial key (4 words)
-	enc [4 * (rounds128 + 1)]uint32
-	dec [4 * (rounds128 + 1)]uint32
+	rounds int
+	enc    [4 * (rounds256 + 1)]uint32
+	dec    [4 * (rounds256 + 1)]uint32
 }
 
 // NewAES initializes a new AES cipher instance that implements block.Cipher.
+// It uses precomputed tables, which makes it vulnerable to cache-timing attacks.
 //
-// It produces only AES-128 and errors when the length of the key is not 16 bytes.
-//
-// TODO: Implement AES-192 and AES-256.
+// It produces AES-128 when key is 16 bytes long, AES-192 when it's 24 bytes
+// and AES-256 when it's 32 bytes; other key sizes error.
 func NewAES(key []byte) (block.Cipher, error) {
-	keyLength := len(key)
-	switch keyLength {
+	var rounds int
+	switch len(key) {
 	case KeyLength128:
-		// TODO: add rounds, keyWords, etc selection based on AES-128, AES-192 and AES-256
-		// For now, we stick to AES-128
+		rounds = rounds128
+
+	case KeyLength192:
+		rounds = rounds192
+
+	case KeyLength256:
+		rounds = rounds256
 
 	default:
-		return nil, fmt.Errorf("aes: key must be %d bytes long, got: %d", KeyLength128, keyLength)
+		return nil, fmt.Errorf("aes: key must be one of (%d, %d, %d) bytes long, got: %d",
+			KeyLength128, KeyLength192, KeyLength256, len(key))
 	}
+	keyWords := len(key) / 4
 
-	enc := [4 * (rounds128 + 1)]uint32{}
-	for i := range keyWords128 {
+	enc := [4 * (rounds256 + 1)]uint32{}
+	for i := range keyWords {
 		enc[i] = binary.BigEndian.Uint32(key[i*4:])
 	}
 
-	for i := keyWords128; i < len(enc); i++ {
+	for i := keyWords; i < 4*(rounds+1); i++ {
 		temp := enc[i-1]
-		if i%keyWords128 == 0 {
-			temp = subWord(bits.RotateLeft32(temp, 8)) ^ rcon[(i/keyWords128)-1]
+		if i%keyWords == 0 {
+			temp = subWord(bits.RotateLeft32(temp, 8)) ^ rcon[(i/keyWords)-1]
+		} else if keyWords > 6 && i%keyWords == 4 {
+			temp = subWord(temp)
 		}
 
-		enc[i] = enc[i-keyWords128] ^ temp
+		enc[i] = enc[i-keyWords] ^ temp
 	}
 
-	dec := [4 * (rounds128 + 1)]uint32{}
-	for i := range rounds128 + 1 {
-		dec[i*4] = enc[(rounds128+1-i)*4-4]
-		dec[i*4+1] = enc[(rounds128+1-i)*4-3]
-		dec[i*4+2] = enc[(rounds128+1-i)*4-2]
-		dec[i*4+3] = enc[(rounds128+1-i)*4-1]
+	dec := [4 * (rounds256 + 1)]uint32{}
+	for i := range rounds + 1 {
+		dec[i*4] = enc[(rounds+1-i)*4-4]
+		dec[i*4+1] = enc[(rounds+1-i)*4-3]
+		dec[i*4+2] = enc[(rounds+1-i)*4-2]
+		dec[i*4+3] = enc[(rounds+1-i)*4-1]
 	}
 
 	return &aes{
-		enc: enc,
-		dec: dec,
+		rounds: rounds,
+		enc:    enc,
+		dec:    dec,
 	}, nil
 }
 
@@ -101,7 +121,7 @@ func (a *aes) Encrypt(dst, src []byte) {
 		binary.BigEndian.Uint32(src[12:]) ^ a.enc[3],
 	}
 
-	for i := range rounds128 - 1 {
+	for i := range a.rounds - 1 {
 		state[0] = subWord(state[0])
 		state[1] = subWord(state[1])
 		state[2] = subWord(state[2])
@@ -149,13 +169,13 @@ func (a *aes) Encrypt(dst, src []byte) {
 	// shift rows and xor with the last key
 	s := state
 	state[0] = ((s[0] & 0xff000000) | (s[1] & 0x00ff0000) |
-		(s[2] & 0x0000ff00) | (s[3] & 0x000000ff)) ^ a.enc[rounds128*4]
+		(s[2] & 0x0000ff00) | (s[3] & 0x000000ff)) ^ a.enc[a.rounds*4]
 	state[1] = ((s[1] & 0xff000000) | (s[2] & 0x00ff0000) |
-		(s[3] & 0x0000ff00) | (s[0] & 0x000000ff)) ^ a.enc[rounds128*4+1]
+		(s[3] & 0x0000ff00) | (s[0] & 0x000000ff)) ^ a.enc[a.rounds*4+1]
 	state[2] = ((s[2] & 0xff000000) | (s[3] & 0x00ff0000) |
-		(s[0] & 0x0000ff00) | (s[1] & 0x000000ff)) ^ a.enc[rounds128*4+2]
+		(s[0] & 0x0000ff00) | (s[1] & 0x000000ff)) ^ a.enc[a.rounds*4+2]
 	state[3] = ((s[3] & 0xff000000) | (s[0] & 0x00ff0000) |
-		(s[1] & 0x0000ff00) | (s[2] & 0x000000ff)) ^ a.enc[rounds128*4+3]
+		(s[1] & 0x0000ff00) | (s[2] & 0x000000ff)) ^ a.enc[a.rounds*4+3]
 
 	// store the result in dst
 	binary.BigEndian.PutUint32(dst[0:], state[0])
@@ -183,7 +203,7 @@ func (a *aes) Decrypt(dst, src []byte) {
 		binary.BigEndian.Uint32(src[12:]) ^ a.dec[3],
 	}
 
-	for i := range rounds128 - 1 {
+	for i := range a.rounds - 1 {
 		state[0] = invSubWord(state[0])
 		state[1] = invSubWord(state[1])
 		state[2] = invSubWord(state[2])
@@ -232,13 +252,13 @@ func (a *aes) Decrypt(dst, src []byte) {
 	// inverse shift rows and xor with the 0th key
 	s := state
 	state[0] = ((s[0] & 0xff000000) | (s[3] & 0x00ff0000) |
-		(s[2] & 0x0000ff00) | (s[1] & 0x000000ff)) ^ a.dec[rounds128*4]
+		(s[2] & 0x0000ff00) | (s[1] & 0x000000ff)) ^ a.dec[a.rounds*4]
 	state[1] = ((s[1] & 0xff000000) | (s[0] & 0x00ff0000) |
-		(s[3] & 0x0000ff00) | (s[2] & 0x000000ff)) ^ a.dec[rounds128*4+1]
+		(s[3] & 0x0000ff00) | (s[2] & 0x000000ff)) ^ a.dec[a.rounds*4+1]
 	state[2] = ((s[2] & 0xff000000) | (s[1] & 0x00ff0000) |
-		(s[0] & 0x0000ff00) | (s[3] & 0x000000ff)) ^ a.dec[rounds128*4+2]
+		(s[0] & 0x0000ff00) | (s[3] & 0x000000ff)) ^ a.dec[a.rounds*4+2]
 	state[3] = ((s[3] & 0xff000000) | (s[2] & 0x00ff0000) |
-		(s[1] & 0x0000ff00) | (s[0] & 0x000000ff)) ^ a.dec[rounds128*4+3]
+		(s[1] & 0x0000ff00) | (s[0] & 0x000000ff)) ^ a.dec[a.rounds*4+3]
 
 	// store the result in dst
 	binary.BigEndian.PutUint32(dst[0:], state[0])
