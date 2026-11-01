@@ -7,15 +7,46 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-// TestCaseParser is the interface implemented by unit test structs.
-type TestCaseParser[T any] interface {
-	// Parse parses fields into a struct of type T and sets the name of the test to name.
-	// It errors when the provided fields do not meet the structure of a unit test.
-	Parse(name string, fields []string) (T, error)
+// sectionRe matches [SECTION].
+var sectionRe = regexp.MustCompile(`^\[([^]]+)]$`)
+
+// ParseFunc parses record into T.
+//
+// It errors on missing/invalid required fields.
+type ParseFunc[T any] func(r Record) (T, error)
+
+// Record is a single parsed .rsp record.
+type Record struct {
+	Name    string
+	Section string
+	Fields  map[string]string
+}
+
+// Hex decodes a hex-string field by its key.
+//
+// It errors when the value is not a valid hex,
+// or the length of a parsed slice does not equal wantLength.
+func (r *Record) Hex(key string, wantLength int) ([]byte, error) {
+	raw, ok := r.Fields[key]
+	if !ok {
+		return nil, fmt.Errorf("field %s not found", key)
+	}
+
+	b, err := hex.DecodeString(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %s is not a valid hex string: %v", key, raw, err)
+	}
+
+	if len(b) != wantLength {
+		return nil, fmt.Errorf("%s=%s got length = %d, want = %d", key, raw, len(b), wantLength)
+	}
+
+	return b, nil
 }
 
 // TestFolder is a wrapper around an embedded testdata folder
@@ -25,20 +56,21 @@ type TestFolder struct {
 	Match string
 }
 
-// ParseTests loads unit tests of type T from every file in folder.FS matching folder.Match.
-// Each file holds comma-separated test rows.
-// Fields from a whitespace-separated row are passed to T's Parse method to build the case.
-// Any read, glob or parse failure fails the test.
-func ParseTests[T TestCaseParser[T]](t *testing.T, folder *TestFolder) []T {
+// ParseTests reads all of the files inside folder and parses them into
+// structs via the provided parse function.
+//
+// It errors when no matching files were found, file format is invalid
+// or parsing failed.
+func ParseTests[T any](t *testing.T, folder *TestFolder, parse ParseFunc[T]) []T {
 	t.Helper()
 
 	files, err := fs.Glob(folder.FS, folder.Match)
 	if err != nil {
-		t.Fatalf("failed to read testdata: %s", err)
+		t.Fatalf("%s: failed to read testdata: %s", folder.Match, err)
 	}
 
 	if len(files) == 0 {
-		t.Fatalf("no test files found for %s", folder.Match)
+		t.Fatalf("%s: no test files found", folder.Match)
 	}
 
 	var out []T
@@ -48,25 +80,18 @@ func ParseTests[T TestCaseParser[T]](t *testing.T, folder *TestFolder) []T {
 			t.Fatalf("%s: failed to read testdata: %s", filename, err)
 		}
 		data := string(read)
-
 		base := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-		counter := 1
-		for line := range strings.SplitSeq(data, ",") {
-			line = strings.TrimSpace(line)
-			if len(line) == 0 {
-				continue
-			}
 
-			fields := strings.Fields(line)
-			name := fmt.Sprintf("%s_%d", base, counter)
+		records, err := parseRSP(base, data)
+		if err != nil {
+			t.Fatalf("%s: failed to parse test data: %s", filename, err)
+		}
 
-			var zero T
-			parsed, err := zero.Parse(name, fields)
+		for _, record := range records {
+			parsed, err := parse(record)
 			if err != nil {
-				t.Fatalf("%s: failed to parse testdata %q: %s", name, fields, err)
+				t.Fatalf("%s: failed to parse record: %s", record.Name, err)
 			}
-
-			counter++
 			out = append(out, parsed)
 		}
 	}
@@ -74,17 +99,98 @@ func ParseTests[T TestCaseParser[T]](t *testing.T, folder *TestFolder) []T {
 	return out
 }
 
-// ParseHex parses raw into a slice of bytes.
-// It errors when raw is not a valid hex, or the length of a parsed slice does not equal wantLen.
-func ParseHex(name string, raw string, wantLen int) ([]byte, error) {
-	b, err := hex.DecodeString(raw)
-	if err != nil {
-		return nil, fmt.Errorf("%s: failed to decode hex %s: %w", name, raw, err)
+const countKey = "COUNT"
+
+// parseRSP parses NIST .rsp file format.
+//
+// Convention:
+//  1. # denotes a comment. They are skipped.
+//  2. [SECTION] is a beginning of a section. Sections can't exist inside records.
+//  3. COUNT = some_number is a beginning of a key = value record.
+//
+// It errors when an illegal section is present inside a record,
+// a key = value pair is broken or a duplicate key was found.
+func parseRSP(filename string, data string) ([]Record, error) {
+	var out []Record
+
+	var current *Record
+	section := "UNKNOWN" // placeholder
+	for raw := range strings.SplitSeq(data, "\n") {
+		raw = strings.TrimSpace(raw)
+		if current == nil {
+			if raw == "" {
+				continue
+			}
+
+			// skip comments
+			if strings.HasPrefix(raw, "#") {
+				continue
+			}
+
+			// beginning of a section
+			matches := sectionRe.FindStringSubmatch(raw)
+			if len(matches) == 2 {
+				section = matches[1]
+				continue
+			}
+
+			// a record MUST start with "COUNT = some_number"
+			key, value, ok := strings.Cut(raw, "=")
+			key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+			if !ok || key != countKey {
+				return nil, fmt.Errorf("invalid record row beginning: %s", raw)
+			}
+
+			current = &Record{
+				Name:    fmt.Sprintf("%s/%s/%s", filename, section, value),
+				Section: section,
+				Fields:  make(map[string]string),
+			}
+		} else {
+			// an empty line ends the Record
+			if raw == "" {
+				out = append(out, *current)
+				current = nil
+				continue
+			}
+
+			// skip comments
+			if strings.HasPrefix(raw, "#") {
+				continue
+			}
+
+			// illegal section
+			if sectionRe.MatchString(raw) {
+				return nil, fmt.Errorf("[section] is not allowed inside a record: %s", raw)
+			}
+
+			key, value, ok := strings.Cut(raw, "=")
+			if !ok {
+				// invalid record row
+				return nil, fmt.Errorf("invalid record row: %s", raw)
+			}
+			key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+
+			switch key {
+			case countKey:
+				return nil, fmt.Errorf("two merging records with no newline: %s", raw)
+
+			case "":
+				return nil, fmt.Errorf("empty key: %s", raw)
+			}
+
+			if _, ok := current.Fields[key]; ok {
+				return nil, fmt.Errorf("duplicate record key: %s", raw)
+			}
+
+			current.Fields[key] = value
+		}
 	}
 
-	if len(b) != wantLen {
-		return nil, fmt.Errorf("%s: expected %d bytes, got %d: %q", name, wantLen, len(b), raw)
+	// flush at the end
+	if current != nil {
+		out = append(out, *current)
 	}
 
-	return b, nil
+	return out, nil
 }
