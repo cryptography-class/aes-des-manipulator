@@ -41,7 +41,7 @@ type TestCase struct {
 
 func ParseKAT(r testutil.Record) (TestCase, error) {
 	var zero TestCase
-	key, err := r.Hex("KEY", KeyLength128)
+	key, err := r.Hex("KEY", KeyLength128, KeyLength192, KeyLength256)
 	if err != nil {
 		return zero, err
 	}
