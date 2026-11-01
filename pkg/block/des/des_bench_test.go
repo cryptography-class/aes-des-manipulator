@@ -32,7 +32,7 @@ func BenchmarkCustomNewDES(b *testing.B) {
 func BenchmarkCryptoDESEncrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
-	dst := make([]byte, blockSize)
+	dst := make([]byte, BlockSize)
 
 	d, err := std.NewCipher(key)
 	if err != nil {
@@ -54,7 +54,7 @@ func BenchmarkCryptoDESEncrypt(b *testing.B) {
 func BenchmarkCustomDESEncrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
-	dst := make([]byte, blockSize)
+	dst := make([]byte, BlockSize)
 
 	d, err := NewDES(key)
 	if err != nil {
@@ -70,7 +70,7 @@ func BenchmarkCustomDESEncrypt(b *testing.B) {
 func BenchmarkCryptoDESDecrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
-	dst := make([]byte, blockSize)
+	dst := make([]byte, BlockSize)
 
 	d, err := std.NewCipher(key)
 	if err != nil {
@@ -92,7 +92,7 @@ func BenchmarkCryptoDESDecrypt(b *testing.B) {
 func BenchmarkCustomDESDecrypt(b *testing.B) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	src := []byte{0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05}
-	dst := make([]byte, blockSize)
+	dst := make([]byte, BlockSize)
 
 	d, err := NewDES(key)
 	if err != nil {
