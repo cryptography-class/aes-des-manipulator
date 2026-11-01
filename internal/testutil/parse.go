@@ -87,6 +87,11 @@ func ParseTests[T any](t *testing.T, folder *TestFolder, parse ParseFunc[T]) []T
 			t.Fatalf("%s: failed to parse test data: %s", filename, err)
 		}
 
+		// fail hard on empty test files
+		if len(records) == 0 {
+			t.Fatalf("%s: empty test file", filename)
+		}
+
 		for _, record := range records {
 			parsed, err := parse(record)
 			if err != nil {
