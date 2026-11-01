@@ -1,3 +1,4 @@
+// Package aes implements the AES block cipher as specified in FIPS 197.
 package aes
 
 import (
