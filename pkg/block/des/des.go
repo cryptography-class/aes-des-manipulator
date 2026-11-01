@@ -10,11 +10,13 @@ import (
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
-// KeyLength is the length of DES cipher key.
-const KeyLength = 8
+const (
+	// KeyLength is the length of DES cipher key in bytes.
+	KeyLength = 8
 
-// blockSize is the block size of DES cipher.
-const blockSize = 8
+	// BlockSize is the block size of DES cipher in bytes.
+	BlockSize = 8
+)
 
 // des implements block.Cipher for the DES cipher.
 //
@@ -66,18 +68,18 @@ func NewDES(key []byte) (block.Cipher, error) {
 //
 // The block size of the DES cipher is 8 bytes.
 func (d *des) BlockSize() int {
-	return blockSize
+	return BlockSize
 }
 
 // crypt applies the DES cipher algorithm onto src in the direction specified by forward.
 // It records the result in dst.
 // It panics when the size of dst or src is not exactly 8 bytes.
 func (d *des) crypt(dst, src []byte, keys *[16]uint64) {
-	if len(src) != blockSize {
+	if len(src) != BlockSize {
 		panic(fmt.Sprintf("des: src must be 8 bytes long, got: %d", len(src)))
 	}
 
-	if len(dst) != blockSize {
+	if len(dst) != BlockSize {
 		panic(fmt.Sprintf("des: dst must be 8 bytes long, got: %d", len(dst)))
 	}
 
