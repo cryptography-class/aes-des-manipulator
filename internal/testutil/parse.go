@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -30,8 +31,8 @@ type Record struct {
 // Hex decodes a hex-string field by its key.
 //
 // It errors when the value is not a valid hex,
-// or the length of a parsed slice does not equal wantLength.
-func (r *Record) Hex(key string, wantLength int) ([]byte, error) {
+// or the length of a parsed slice is not in allowed.
+func (r *Record) Hex(key string, allowed ...int) ([]byte, error) {
 	raw, ok := r.Fields[key]
 	if !ok {
 		return nil, fmt.Errorf("field %s not found", key)
@@ -42,8 +43,8 @@ func (r *Record) Hex(key string, wantLength int) ([]byte, error) {
 		return nil, fmt.Errorf("%s: %s is not a valid hex string: %v", key, raw, err)
 	}
 
-	if len(b) != wantLength {
-		return nil, fmt.Errorf("%s=%s got length = %d, want = %d", key, raw, len(b), wantLength)
+	if !slices.Contains(allowed, len(b)) {
+		return nil, fmt.Errorf("%s=%s got length = %d, want = %v", key, raw, len(b), allowed)
 	}
 
 	return b, nil
