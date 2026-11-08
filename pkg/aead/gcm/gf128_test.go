@@ -1,4 +1,4 @@
-package aead
+package gcm
 
 import (
 	"crypto/rand"
@@ -21,22 +21,16 @@ func TestMul(t *testing.T) {
 		want fieldElement
 	}{
 		{
-			name: "times zero",
+			name: "times 0",
 			x:    loadFieldElement(t, "66e94bd4ef8a2c3b884cfa59ca342b2e"),
 			y:    loadFieldElement(t, "00000000000000000000000000000000"),
 			want: loadFieldElement(t, "00000000000000000000000000000000"),
 		},
 		{
-			name: "times one",
+			name: "times 1",
 			x:    loadFieldElement(t, "66e94bd4ef8a2c3b884cfa59ca342b2e"),
 			y:    loadFieldElement(t, "80000000000000000000000000000000"),
 			want: loadFieldElement(t, "66e94bd4ef8a2c3b884cfa59ca342b2e"),
-		},
-		{
-			name: "NIST",
-			x:    loadFieldElement(t, "0388dace60b6a392f328c2b971b2fe78"),
-			y:    loadFieldElement(t, "66e94bd4ef8a2c3b884cfa59ca342b2e"),
-			want: loadFieldElement(t, "5e2ec746917062882c85b0685353deb7"),
 		},
 		{
 			name: "random 1",

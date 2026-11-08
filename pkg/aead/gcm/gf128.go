@@ -1,8 +1,8 @@
-package aead
+package gcm
 
 import "encoding/binary"
 
-// fieldElement is polynomial in GF(2^128).
+// fieldElement is a polynomial in GF(2^128).
 // It is represented by two uint64 values:
 //
 //	H63_H62_H61...H0_L63_L62...L0
@@ -27,7 +27,7 @@ type fieldElement struct {
 func newFieldElement(block [16]byte) fieldElement {
 	return fieldElement{
 		high: binary.BigEndian.Uint64(block[0:8]),
-		low:  binary.BigEndian.Uint64(block[8:16]),
+		low:  binary.BigEndian.Uint64(block[8:]),
 	}
 }
 
@@ -58,6 +58,7 @@ func mulX(e fieldElement) fieldElement {
 	low := (e.low >> 1) | (e.high << 63)
 
 	if fold {
+		// folding is required when bit 127 of the element is set
 		high = high ^ (0xE1 << 56)
 	}
 
@@ -68,6 +69,8 @@ func mulX(e fieldElement) fieldElement {
 }
 
 // mul multiplies two elements of GF(2^128).
+//
+// TODO: Replace with Shoup.
 func mul(x, y fieldElement) fieldElement {
 	z := fieldElement{}
 	v := y
