@@ -13,6 +13,18 @@ import (
 	"testing"
 )
 
+// MustHex parses a hexstring into a slice of bytes.
+func MustHex(t *testing.T, h string) []byte {
+	t.Helper()
+
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return b
+}
+
 // sectionRe matches [SECTION].
 var sectionRe = regexp.MustCompile(`^\[([^]]+)]$`)
 
