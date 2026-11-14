@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 
+	"github.com/cryptography-class/aes-des-manipulator/internal/counter"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
@@ -79,7 +80,7 @@ func (e *ctrCrypter) Crypt(dst, src []byte) error {
 	for idx < len(src) {
 		if e.keystreamIndex == blockSize {
 			e.cipher.Encrypt(e.keystream, e.counter)
-			e.incrementCounter()
+			counter.Increment(e.counter, 1)
 			e.keystreamIndex = 0
 		}
 
@@ -95,14 +96,4 @@ func (e *ctrCrypter) Crypt(dst, src []byte) error {
 	}
 
 	return nil
-}
-
-// incrementCounter treats counter as a big-endian and increments it.
-func (e *ctrCrypter) incrementCounter() {
-	for i := len(e.counter) - 1; i >= 0; i-- {
-		e.counter[i]++
-		if e.counter[i] != 0 {
-			return
-		}
-	}
 }
