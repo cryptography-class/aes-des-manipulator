@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	// tagSize is the size of the tag produced by GCM.
-	tagSize = 16
+	// TagSize is the size of the tag produced by GCM.
+	TagSize = 16
 
-	// nonceSize is the size of the nonce used by GCM.
-	nonceSize = 12
+	// NonceSize is the size of the nonce used by GCM.
+	NonceSize = 12
 
 	// blockSize is the size of a single GCM block.
 	blockSize = 16
@@ -56,12 +56,12 @@ func (g *gcm) tag(iv []byte) []byte {
 
 // NonceSize implements aead.Sealer and aead.Opener.
 func (g *gcm) NonceSize() int {
-	return nonceSize
+	return NonceSize
 }
 
 // Overhead implements aead.Sealer and aead.Opener.
 func (g *gcm) Overhead() int {
-	return tagSize
+	return TagSize
 }
 
 // checkGCM checks that the cipher and iv are appropriate for GCM.
@@ -74,8 +74,8 @@ func checkGCM(cipher block.Cipher, iv []byte) {
 		panic(fmt.Sprintf("gcm: cipher's block size must equal %d, got %d", blockSize, cipher.BlockSize()))
 	}
 
-	if len(iv) != nonceSize {
-		panic(fmt.Sprintf("gcm: iv must have length %d, got %d", nonceSize, len(iv)))
+	if len(iv) != NonceSize {
+		panic(fmt.Sprintf("gcm: iv must have length %d, got %d", NonceSize, len(iv)))
 	}
 }
 

@@ -48,7 +48,7 @@ func (g *gcmOpener) Write(ciphertext []byte) error {
 
 // Verify implements aead.Opener.
 func (g *gcmOpener) Verify(tag []byte) (aead.Decrypter, error) {
-	if len(tag) != tagSize {
+	if len(tag) != TagSize {
 		return nil, aead.ErrInvalidAuthentication
 	}
 
