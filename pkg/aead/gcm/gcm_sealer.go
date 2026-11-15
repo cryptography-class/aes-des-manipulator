@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 
 	"github.com/cryptography-class/aes-des-manipulator/internal/counter"
-	"github.com/cryptography-class/aes-des-manipulator/internal/overlap"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/aead"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
@@ -40,22 +39,7 @@ func NewGCMSealer(cipher block.Cipher, iv []byte) aead.Sealer {
 		counter:        ctr,
 		keystream:      make([]byte, blockSize),
 		keystreamIndex: blockSize,
-		blocks:         0,
 	}
-}
-
-// checkOverlap checks whether dst and src have an equal length
-// and overlap entirely or not at all.
-func checkOverlap(dst, src []byte) error {
-	if len(dst) != len(src) {
-		return aead.ErrLengthMismatch
-	}
-
-	if overlap.InexactOverlap(dst, src) {
-		return aead.ErrInexactOverlap
-	}
-
-	return nil
 }
 
 // WriteAD implements aead.Sealer.
@@ -70,8 +54,7 @@ func (g *gcmSealer) Write(dst, src []byte) error {
 	}
 
 	// reject src that would overflow the 64GiB boundary
-	blocks := int64((len(src) + blockSize - 1) / blockSize)
-	if blocks+g.blocks > maxBlocks {
+	if uint64(len(src)) > maxBytes-g.hash.ciphertextLength {
 		return aead.ErrTooMuchData
 	}
 
@@ -83,7 +66,6 @@ func (g *gcmSealer) Write(dst, src []byte) error {
 			// gcm increments just the last 4 bytes of the counter
 			counter.Increment(g.counter[12:], 1)
 			g.keystreamIndex = 0
-			g.blocks++
 		}
 
 		n := min(blockSize-g.keystreamIndex, len(src)-idx)

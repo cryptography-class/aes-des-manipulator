@@ -20,9 +20,10 @@ type gcmDecrypter struct {
 	keystream      []byte
 	keystreamIndex int
 
-	// blocks is the amount of block processed.
+	// pos is the number of bytes decrypted so far, counted from
+	// the start of the ciphertext (including the At offset).
 	// GCM supports at most 64GiB of data.
-	blocks int64
+	pos uint64
 }
 
 // newGCMDecrypter intializes a new gcmDecrypter to use after gcmOpener.Verify.
@@ -36,7 +37,6 @@ func newGCMDecrypter(cipher block.Cipher, iv []byte) *gcmDecrypter {
 		counter:        ctr,
 		keystream:      make([]byte, blockSize),
 		keystreamIndex: blockSize,
-		blocks:         0,
 	}
 }
 
@@ -47,8 +47,7 @@ func (g *gcmDecrypter) Decrypt(dst, src []byte) error {
 	}
 
 	// reject src that would overflow the 64GiB boundary
-	blocks := int64((len(src) + blockSize - 1) / blockSize)
-	if blocks+g.blocks > maxBlocks {
+	if uint64(len(src)) > maxBytes-g.pos {
 		return aead.ErrTooMuchData
 	}
 
@@ -60,7 +59,6 @@ func (g *gcmDecrypter) Decrypt(dst, src []byte) error {
 			// gcm increments just the last 4 bytes of the counter
 			counter.Increment(g.counter[12:], 1)
 			g.keystreamIndex = 0
-			g.blocks++
 		}
 
 		n := min(blockSize-g.keystreamIndex, len(src)-idx)
@@ -74,6 +72,7 @@ func (g *gcmDecrypter) Decrypt(dst, src []byte) error {
 		idx += n
 	}
 
+	g.pos += uint64(len(src))
 	return nil
 }
 
@@ -92,6 +91,6 @@ func (g *gcmDecrypter) At(blocks uint64) (aead.Decrypter, error) {
 		counter:        ctr,
 		keystream:      make([]byte, blockSize),
 		keystreamIndex: blockSize,
-		blocks:         int64(blocks),
+		pos:            blocks * blockSize,
 	}, nil
 }

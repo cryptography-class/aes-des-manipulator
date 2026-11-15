@@ -27,7 +27,6 @@ func NewGCMOpener(cipher block.Cipher, iv []byte) aead.Opener {
 	return &gcmOpener{
 		cipher: cipher,
 		hash:   newGhash([16]byte(h)),
-		blocks: 0,
 		iv:     bytes.Clone(iv),
 	}
 }
@@ -39,7 +38,7 @@ func (g *gcmOpener) WriteAD(data []byte) {
 
 // Write implements aead.Opener.
 func (g *gcmOpener) Write(ciphertext []byte) error {
-	if uint64(len(ciphertext))+g.hash.ciphertextLength > maxBlocks*blockSize {
+	if uint64(len(ciphertext)) > maxBytes-g.hash.ciphertextLength {
 		return aead.ErrTooMuchData
 	}
 

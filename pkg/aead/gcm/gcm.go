@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/cryptography-class/aes-des-manipulator/internal/overlap"
+	"github.com/cryptography-class/aes-des-manipulator/pkg/aead"
 	"github.com/cryptography-class/aes-des-manipulator/pkg/block"
 )
 
@@ -20,7 +22,11 @@ const (
 
 	// maxBlocks is the max number of blocks that GCM can process
 	// before returning aead.ErrTooMuchData.
-	maxBlocks = 4294967294 // 68,719,476,704 bytes
+	maxBlocks = 4294967294
+
+	// maxBytes is the max amount of bytes that GCM can process
+	// before returning aead.ErrTooMuchData.
+	maxBytes = maxBlocks * blockSize // 68,719,476,704 bytes
 )
 
 // gcm is the shared base for aead.Sealer and aead.Opener
@@ -28,10 +34,6 @@ const (
 type gcm struct {
 	cipher block.Cipher
 	hash   *ghash
-
-	// blocks is the number of block processed.
-	// GCM supports at most 64GiB of data.
-	blocks int64
 }
 
 // tag produces a tag for written additional data and data.
@@ -75,4 +77,18 @@ func checkGCM(cipher block.Cipher, iv []byte) {
 	if len(iv) != nonceSize {
 		panic(fmt.Sprintf("gcm: iv must have length %d, got %d", nonceSize, len(iv)))
 	}
+}
+
+// checkOverlap checks whether dst and src have an equal length
+// and overlap entirely or not at all.
+func checkOverlap(dst, src []byte) error {
+	if len(dst) != len(src) {
+		return aead.ErrLengthMismatch
+	}
+
+	if overlap.InexactOverlap(dst, src) {
+		return aead.ErrInexactOverlap
+	}
+
+	return nil
 }
