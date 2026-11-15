@@ -14,8 +14,8 @@ const (
 	ghashMatch = "testdata/ghash/*.rsp"
 )
 
-// testCase is a single test case for AES Encrypt/Decrypt/Roundtrip.
-type testCase struct {
+// ghashTestCase is a single test case for GHASH.
+type ghashTestCase struct {
 	name       string
 	h          []byte
 	aad        []byte
@@ -23,8 +23,8 @@ type testCase struct {
 	hash       []byte
 }
 
-func parseKAT(r testutil.Record) (testCase, error) {
-	var zero testCase
+func parseGHASHKAT(r testutil.Record) (ghashTestCase, error) {
+	var zero ghashTestCase
 	h, err := r.Hex("H", 16)
 	if err != nil {
 		return zero, err
@@ -45,7 +45,7 @@ func parseKAT(r testutil.Record) (testCase, error) {
 		return zero, err
 	}
 
-	return testCase{
+	return ghashTestCase{
 		name:       r.Name,
 		h:          h,
 		aad:        aad,
@@ -54,13 +54,13 @@ func parseKAT(r testutil.Record) (testCase, error) {
 	}, nil
 }
 
-func TestKAT(t *testing.T) {
+func TestGHASHKAT(t *testing.T) {
 	folder := &testutil.TestFolder{
 		FS:    &ghashTestDataFS,
 		Match: ghashMatch,
 	}
 
-	for _, tt := range testutil.ParseTests(t, folder, parseKAT) {
+	for _, tt := range testutil.ParseTests(t, folder, parseGHASHKAT) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := newGhash([16]byte(tt.h))
 			g.writeAAD(tt.aad)
