@@ -1,7 +1,11 @@
 // Package rando defines wrapped crypto/rand and IV utilities.
 package rando
 
-import "crypto/rand"
+import (
+	"crypto/rand"
+
+	"github.com/cryptography-class/aes-des-manipulator/internal/counter"
+)
 
 // RandomBytes generates n random bytes.
 // n must be non-negative.
@@ -12,13 +16,8 @@ func RandomBytes(n int) []byte {
 	return b
 }
 
-// IncrementCounter treats counter as big-endian integer and adds n to it.
-// On overflow the counter wraps around to zero.
-func IncrementCounter(counter []byte, n uint64) {
-	carry := n
-	for i := len(counter) - 1; i >= 0 && carry > 0; i-- {
-		sum := uint64(counter[i]) + (carry & 0xFF)
-		counter[i] = byte(sum)
-		carry = (carry >> 8) + (sum >> 8)
-	}
+// IncrementCounter treats iv as big-endian integer and adds n to it.
+// On overflow the iv wraps around to zero.
+func IncrementCounter(iv []byte, n uint64) {
+	counter.Increment(iv, n)
 }
