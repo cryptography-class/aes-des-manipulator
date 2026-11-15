@@ -55,6 +55,10 @@ func (r *Record) Hex(key string, allowed ...int) ([]byte, error) {
 		return nil, fmt.Errorf("%s: %s is not a valid hex string: %v", key, raw, err)
 	}
 
+	if len(allowed) == 0 {
+		return b, nil
+	}
+
 	if !slices.Contains(allowed, len(b)) {
 		return nil, fmt.Errorf("%s=%s got length = %d, want = %v", key, raw, len(b), allowed)
 	}
