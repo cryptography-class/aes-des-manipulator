@@ -102,7 +102,7 @@ func (g *ghash) sum() [16]byte {
 		low:  g.ciphertextLength * 8,
 	}
 
-	g.y = mul(xor(g.y, lengthBlock), g.h)
+	g.y = mul(xor(g.y, lengthBlock, 0xFFFFFFFFFFFFFFFF), g.h)
 
 	sum := [16]byte{}
 	binary.BigEndian.PutUint64(sum[:8], g.y.high)
@@ -135,7 +135,7 @@ func (g *ghash) write(data []byte) {
 
 // absorb adds block to the running sum y.
 func (g *ghash) absorb(block [16]byte) {
-	g.y = mul(xor(g.y, newFieldElement(block)), g.h)
+	g.y = mul(xor(g.y, newFieldElement(block), 0xFFFFFFFFFFFFFFFF), g.h)
 }
 
 // flush pads the leftover bytes in buffer and absorbs them

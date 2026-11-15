@@ -32,35 +32,33 @@ func newFieldElement(block [16]byte) fieldElement {
 }
 
 // xor adds two elements of GF(2^128).
-func xor(a, b fieldElement) fieldElement {
+func xor(a, b fieldElement, mask uint64) fieldElement {
 	return fieldElement{
-		high: a.high ^ b.high,
-		low:  a.low ^ b.low,
+		high: a.high ^ (b.high & mask),
+		low:  a.low ^ (b.low & mask),
 	}
 }
 
-// bitSet checks whether the bit at position is set.
-func (e *fieldElement) bitSet(position int) bool {
+// bit returns the bit as position.
+func (e *fieldElement) bit(position int) uint64 {
 	if position > 63 {
-		return ((e.low >> (127 - position)) & 1) == 1
+		return (e.low >> (127 - position)) & 1
 	}
 
-	return ((e.high >> (63 - position)) & 1) == 1
+	return (e.high >> (63 - position)) & 1
 }
 
 // mulX multiplies an element by x in GF(2^128).
 func mulX(e fieldElement) fieldElement {
-	fold := (e.low & 1) == 1
+	mask := 0 - (e.low & 1)
 
 	high := e.high >> 1
 
 	// bit 0 of high becomes bit 63 of low after the shift
 	low := (e.low >> 1) | (e.high << 63)
 
-	if fold {
-		// folding is required when bit 127 of the element is set
-		high = high ^ (0xE1 << 56)
-	}
+	// folding is required when bit 127 of the element is set
+	high = high ^ ((0xE1 << 56) & mask)
 
 	return fieldElement{
 		high: high,
@@ -76,9 +74,8 @@ func mul(x, y fieldElement) fieldElement {
 	v := y
 
 	for i := range 128 {
-		if x.bitSet(i) {
-			z = xor(z, v)
-		}
+		mask := 0 - x.bit(i)
+		z = xor(z, v, mask)
 
 		v = mulX(v)
 	}
